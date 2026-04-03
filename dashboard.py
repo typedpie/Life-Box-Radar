@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 from google.oauth2 import service_account
+from google.cloud import bigquery
 
 ID_PROYECTO = "proyecto-life-box-licitaciones" 
 RUTA_CREDENCIALES = "credenciales_gcp.json"
@@ -75,8 +76,9 @@ credenciales = service_account.Credentials.from_service_account_file(RUTA_CREDEN
 def cargar_oportunidades_bq():
     try:
         query = f"""
-            SELECT fecha_deteccion, titulo_llamado_web, origen_web, palabra_clave, curso, region, comuna, modalidad, cupos, horas, link_documento
+            SELECT fecha_deteccion, titulo_llamado_web, origen_web, palabra_clave, curso, region, comuna, modalidad, link_documento
             FROM `{ID_PROYECTO}.licitaciones.oportunidades`
+            WHERE estado = 'Activo' OR estado IS NULL
             ORDER BY fecha_deteccion DESC
         """
         df = pd.read_gbq(query, project_id=ID_PROYECTO, credentials=credenciales)
@@ -196,17 +198,55 @@ else:
             </div>
         """, unsafe_allow_html=True)
 
-    # --- TABLA DE DATOS ---
+    # --- TABLA DE DATOS INTERACTIVA ---
     st.markdown("### 📋 Repositorio de Licitaciones")
     if total_ops == 0:
         st.warning("No hay resultados que coincidan con los filtros seleccionados.")
     else:
-        st.dataframe(
-            df_filtrado,
+        # Agregamos una columna falsa de casillas de verificación al principio
+        df_interactivo = df_filtrado.copy()
+        df_interactivo.insert(0, '🗑️ Descartar', False)
+
+        # Usamos data_editor en vez de dataframe para que el usuario pueda hacer clic
+        df_editado = st.data_editor(
+            df_interactivo,
             column_config={
+                "🗑️ Descartar": st.column_config.CheckboxColumn("Descartar", help="Marca esta casilla para enviar a la lista negra"),
                 "Link Excel": st.column_config.LinkColumn("Descargar Base")
             },
+            # Bloqueamos el resto de las columnas para que no editen los nombres por error
+            disabled=['Detectado el', 'Llamado', 'OTIC', 'Gatillo', 'Curso', 'Región', 'Comuna', 'Modalidad', 'Link Excel'],
             use_container_width=True,
             hide_index=True,
             height=400
         )
+
+        # Filtramos para ver si el usuario marcó alguna casilla
+        filas_a_descartar = df_editado[df_editado['🗑️ Descartar'] == True]
+
+        # Si hay casillas marcadas, mostramos el botón de acción
+        if not filas_a_descartar.empty:
+            st.warning(f"Estás a punto de ocultar {len(filas_a_descartar)} documentos de la vista principal.")
+            if st.button("⚠️ Confirmar y Ocultar Selección", type="primary"):
+                
+                # Preparamos la conexión directa a BigQuery para enviar la actualización
+                cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
+                links_a_ocultar = filas_a_descartar['Link Excel'].tolist()
+                
+                # Formateamos los links para la consulta SQL
+                links_format = "','".join(links_a_ocultar)
+                
+                query_update = f"""
+                    UPDATE `{ID_PROYECTO}.licitaciones.oportunidades`
+                    SET estado = 'Descartado'
+                    WHERE link_documento IN ('{links_format}')
+                """
+                
+                with st.spinner("Enviando a la lista negra..."):
+                    # Ejecutamos la actualización
+                    query_job = cliente_bq.query(query_update)
+                    query_job.result() # Esperamos a que termine
+                    
+                    # Limpiamos la caché y recargamos la página
+                    st.cache_data.clear()
+                    st.rerun()
