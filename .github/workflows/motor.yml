@@ -1,33 +1,29 @@
 name: Motor Espia Licitaciones
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '*/30 * * * *'
-  workflow_dispatch:
 
 jobs:
   ejecutar-bot:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Clonar el codigo
-      uses: actions/checkout@v3
+      - name: Clonar el codigo
+        uses: actions/checkout@v4
 
-    - name: Configurar Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-    - name: Instalar librerias
-      run: |
-        pip install selenium groq pandas google-cloud-bigquery webdriver-manager openpyxl pandas-gbq
+      - name: Instalar librerias
+        run: pip install selenium groq pandas google-cloud-bigquery webdriver-manager openpyxl pandas-gbq beautifulsoup4 requests
 
-    - name: Crear llave maestra de Google
-      run: |
-        echo '${{ secrets.GCP_CREDENTIALS }}' > credenciales_gcp.json
+      - name: Crear llave maestra de Google
+        run: echo '${{ secrets.GCP_CREDENTIALS }}' > credenciales_gcp.json
 
-    - name: Ejecutar el Espia
-      env:
-        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-      run: |
-        python main.py
+      - name: Ejecutar el Espia
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python main.py
