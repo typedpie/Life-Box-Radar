@@ -75,19 +75,20 @@ credenciales = service_account.Credentials.from_service_account_file(RUTA_CREDEN
 @st.cache_data(ttl=600)
 def cargar_oportunidades_bq():
     try:
+        # AQUÍ ESTABA EL ERROR: Faltaban cupos y horas
         query = f"""
-            SELECT fecha_deteccion, titulo_llamado_web, origen_web, palabra_clave, curso, region, comuna, modalidad, link_documento
+            SELECT fecha_deteccion, titulo_llamado_web, origen_web, palabra_clave, curso, region, comuna, modalidad, cupos, horas, link_documento
             FROM `{ID_PROYECTO}.licitaciones.oportunidades`
             WHERE estado = 'Activo' OR estado IS NULL
             ORDER BY fecha_deteccion DESC
         """
         df = pd.read_gbq(query, project_id=ID_PROYECTO, credentials=credenciales)
         
-        # Renombramos las columnas inmediatamente para que sea más fácil trabajar con ellas
         if not df.empty:
+            # Ahora sí coinciden los 11 nombres con las 11 columnas
             df.columns = ['Detectado el', 'Llamado', 'OTIC', 'Gatillo', 'Curso', 'Región', 'Comuna', 'Modalidad', 'Alumnos', 'Horas', 'Link Excel']
             df['Detectado el'] = pd.to_datetime(df['Detectado el']).dt.strftime('%d-%m-%Y %H:%M')
-            # Limpiamos posibles valores nulos en los textos para los filtros
+            
             for col in ['OTIC', 'Región', 'Comuna', 'Gatillo']:
                 df[col] = df[col].fillna('No especificado').astype(str)
         return df
