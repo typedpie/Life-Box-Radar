@@ -1,17 +1,16 @@
 name: Motor Espia Licitaciones
 
-# Cuándo debe ejecutarse
 on:
   schedule:
-    - cron: '*/30 * * * *' # Se ejecuta cada 30 minutos
-  workflow_dispatch: # Crea un botón en GitHub para ejecutarlo manualmente cuando quieras
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
 
 jobs:
   ejecutar-bot:
-    runs-on: ubuntu-latest # Computador Linux de GitHub
+    runs-on: ubuntu-latest
 
     steps:
-    - name: Clonar el código
+    - name: Clonar el codigo
       uses: actions/checkout@v3
 
     - name: Configurar Python
@@ -19,18 +18,15 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Instalar librerías del bot
-      # Instalamos todo lo que usa tu main.py directamente
+    - name: Instalar librerias
       run: |
         pip install selenium groq pandas google-cloud-bigquery webdriver-manager openpyxl pandas-gbq
 
     - name: Crear llave maestra de Google
-      # Inyecta tu llave de Google Cloud desde los secretos antes de correr
       run: |
         echo '${{ secrets.GCP_CREDENTIALS }}' > credenciales_gcp.json
 
-    - name: Ejecutar el Espía
-      # Pone la llave de Groq en la memoria y lanza tu main.py
+    - name: Ejecutar el Espia
       env:
         GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       run: |
