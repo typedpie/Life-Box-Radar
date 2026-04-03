@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class DocumentAnalyzer:
     def __init__(self):
         # 🔴 PEGA TU API KEY DE GROQ AQUÍ 🔴
-        self.client = Groq(api_key="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") 
+        self.client = Groq(api_key=os.environ.get("GROQ_API_KEY")) 
         
         # Usaremos el modelo Llama 3 de 70 billones de parámetros (Ultra inteligente y rápido)
         self.modelo_ia = "llama-3.3-70b-versatile" 

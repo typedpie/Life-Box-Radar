@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 
+
 # Configuración básica de Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -18,10 +19,10 @@ class ProformaScraperSelenium:
     def _init_driver(self):
         logging.info("Inicializando el navegador automatizado (Selenium)...")
         options = webdriver.ChromeOptions()
-        # options.add_argument("--headless") # Descomentar para modo invisible
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--no-sandbox")#permiso para correr en linux
+        options.add_argument("--disable-dev-shm-usage")#evitar quedarse sin ram 
         options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+        options.add_argument("--headless=new") #invisible
         
         return webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
