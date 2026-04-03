@@ -251,3 +251,60 @@ else:
                     # Limpiamos la caché y recargamos la página
                     st.cache_data.clear()
                     st.rerun()
+
+        # --- PAPELERA DE RECICLAJE ---
+    st.markdown("---")
+    ver_papelera = st.toggle("🗑️ Abrir Papelera de Reciclaje")
+    
+    if ver_papelera:
+        st.markdown("#### Documentos Descartados")
+        
+        # Consultamos SOLO los descartados
+        query_papelera = f"""
+            SELECT fecha_deteccion, titulo_llamado_web, curso, link_documento
+            FROM `{ID_PROYECTO}.licitaciones.oportunidades`
+            WHERE estado = 'Descartado'
+            ORDER BY fecha_deteccion DESC
+        """
+        try:
+            df_papelera = pd.read_gbq(query_papelera, project_id=ID_PROYECTO, credentials=credenciales)
+            
+            if df_papelera.empty:
+                st.info("La papelera está vacía.")
+            else:
+                # Preparamos la tabla interactiva de la papelera
+                df_papelera.insert(0, '♻️ Restaurar', False)
+                
+                df_papelera_edit = st.data_editor(
+                    df_papelera,
+                    column_config={
+                        "♻️ Restaurar": st.column_config.CheckboxColumn("Restaurar", help="Marca para devolver a la vista principal")
+                    },
+                    disabled=['fecha_deteccion', 'titulo_llamado_web', 'curso', 'link_documento'],
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                filas_a_restaurar = df_papelera_edit[df_papelera_edit['♻️ Restaurar'] == True]
+                
+                if not filas_a_restaurar.empty:
+                    if st.button("✨ Confirmar Restauración", type="primary"):
+                        links_a_revivir = filas_a_restaurar['link_documento'].tolist()
+                        links_format = "','".join(links_a_revivir)
+                        
+                        # Actualizamos en BigQuery para que vuelvan a ser 'Activo'
+                        query_revivir = f"""
+                            UPDATE `{ID_PROYECTO}.licitaciones.oportunidades`
+                            SET estado = 'Activo'
+                            WHERE link_documento IN ('{links_format}')
+                        """
+                        
+                        with st.spinner("Restaurando documentos..."):
+                            cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
+                            cliente_bq.query(query_revivir).result()
+                            
+                            st.cache_data.clear()
+                            st.rerun()
+                            
+        except Exception as e:
+            st.error(f"Error cargando la papelera: {e}")
