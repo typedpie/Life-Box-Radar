@@ -10,10 +10,11 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class DocumentAnalyzer:
     def __init__(self):
-        # 🔴 PEGA TU API KEY DE GROQ AQUÍ 🔴
-        self.client = Groq(api_key=os.environ.get("GROQ_API_KEY")) 
+        # Lee la llave secreta desde GitHub Actions de forma segura
+        self.api_key = os.environ.get("GROQ_API_KEY")
+        self.client = Groq(api_key=self.api_key) if self.api_key else None
         
-        # Usaremos el modelo Llama 3 de 70 billones de parámetros (Ultra inteligente y rápido)
+        # Modelo Llama 3 de 70 billones de parámetros (Ultra inteligente y rápido)
         self.modelo_ia = "llama-3.3-70b-versatile" 
         
         self.temp_dir = "temp_docs"
@@ -42,10 +43,10 @@ class DocumentAnalyzer:
             logging.error(f"Error descargando {url}: {e}")
             return None
 
-    def extraer_datos_batch_con_ia(self, filas_a_procesar):
-        """Envía TODO el lote de filas juntas en un solo disparo a Groq."""
+    def extraer_lote_con_ia(self, lote_filas):
+        """Envía un lote de filas a Groq para extraer los datos estructurados."""
         texto_batch = ""
-        for f in filas_a_procesar:
+        for f in lote_filas:
             texto_batch += f"ID_FILA: {f['id']} | PALABRA_CLAVE: {f['palabra_clave']} | DATOS: {f['texto']}\n"
 
         prompt_sistema = """Eres un sistema automatizado de extracción de datos. Tu ÚNICO propósito es leer texto crudo y devolver un array JSON válido. NUNCA escribas saludos, explicaciones, ni texto fuera del bloque JSON."""
@@ -74,19 +75,17 @@ class DocumentAnalyzer:
         max_reintentos = 3
         for intento in range(max_reintentos):
             try:
-                # El formato de llamada de Groq es idéntico al de OpenAI
                 respuesta = self.client.chat.completions.create(
                     messages=[
                         {"role": "system", "content": prompt_sistema},
                         {"role": "user", "content": prompt_usuario}
                     ],
                     model=self.modelo_ia,
-                    temperature=0.1, # Temperatura baja para que sea analítico y no invente datos
+                    temperature=0.1, 
                 )
                 
                 texto_limpio = respuesta.choices[0].message.content.strip()
                 
-                # Limpiamos los marcadores de código por si la IA los incluye
                 if texto_limpio.startswith("```json"):
                     texto_limpio = texto_limpio[7:-3].strip()
                 elif texto_limpio.startswith("```"):
@@ -96,8 +95,9 @@ class DocumentAnalyzer:
                 
             except Exception as e:
                 error_str = str(e)
-                if '429' in error_str:
-                    espera = 10 
+                # Si Groq nos dice que enviamos mucho (413) o muy rápido (429), hacemos una pausa más larga
+                if '429' in error_str or '413' in error_str:
+                    espera = 15 
                     logging.warning(f"Límite de velocidad en Groq... pausando {espera} seg (Intento {intento + 1}/{max_reintentos})")
                     time.sleep(espera)
                 else:
@@ -107,6 +107,10 @@ class DocumentAnalyzer:
         return []
 
     def analizar_excel(self, ruta_excel, palabras_clave):
+        if not self.client:
+            logging.error("No se encontró GROQ_API_KEY. Asegúrate de que el Secret de GitHub esté configurado.")
+            return []
+
         logging.info(f"Escaneando interior del Excel: {ruta_excel}...")
         resultados_finales = []
         filas_relevantes = []
@@ -114,6 +118,7 @@ class DocumentAnalyzer:
         try:
             df = pd.read_excel(ruta_excel, header=None)
             
+            # 1. PRE-FILTRO: Buscamos palabras clave fila por fila
             for index, fila in df.iterrows():
                 texto_fila = " | ".join([str(val).strip() for val in fila.values if pd.notna(val)])
                 coincidencias = [kw.upper() for kw in palabras_clave if kw.lower() in texto_fila.lower()]
@@ -128,22 +133,34 @@ class DocumentAnalyzer:
             if not filas_relevantes:
                 return []
                 
-            logging.info(f"Se encontraron {len(filas_relevantes)} filas clave. ¡Enviando lote a Groq (Llama 3)!")
+            logging.info(f"Se encontraron {len(filas_relevantes)} filas clave. Iniciando procesamiento por lotes...")
             
-            datos_ia = self.extraer_datos_batch_con_ia(filas_relevantes)
+            # 2. SISTEMA DE LOTES (Para no ahogar a Groq)
+            tamano_lote = 10 
             
-            for item in datos_ia:
-                resultados_finales.append({
-                    "palabra_clave": item.get("palabra_clave", "Desconocido"),
-                    "curso": item.get("curso", "No especificado"),
-                    "region": item.get("region", "No especificado"),
-                    "comuna": item.get("comuna", "No especificado"),
-                    "cupos": str(item.get("cupos", "N/A")),
-                    "horas": str(item.get("horas", "N/A")),
-                    "modalidad": item.get("modalidad", "No especificado"),
-                    "fila": item.get("id_fila", 0)
-                })
+            for i in range(0, len(filas_relevantes), tamano_lote):
+                lote = filas_relevantes[i:i + tamano_lote]
+                logging.info(f"🧠 Analizando lote {i//tamano_lote + 1} (Filas {i+1} a {min(i+tamano_lote, len(filas_relevantes))})...")
                 
+                datos_ia = self.extraer_lote_con_ia(lote)
+                
+                for item in datos_ia:
+                    resultados_finales.append({
+                        "palabra_clave": item.get("palabra_clave", "Desconocido"),
+                        "curso": item.get("curso", "No especificado"),
+                        "region": item.get("region", "No especificado"),
+                        "comuna": item.get("comuna", "No especificado"),
+                        "cupos": str(item.get("cupos", "N/A")),
+                        "horas": str(item.get("horas", "N/A")),
+                        "modalidad": item.get("modalidad", "No especificado"),
+                        "fila": item.get("id_fila", 0)
+                    })
+                
+                # 3. PAUSA TÁCTICA: Si aún quedan más lotes, esperamos 25 segundos
+                if i + tamano_lote < len(filas_relevantes):
+                    logging.info("⏱️ Enfriando el motor de Groq por 25 segundos para respetar los límites...")
+                    time.sleep(25)
+                    
             return resultados_finales
             
         except Exception as e:
