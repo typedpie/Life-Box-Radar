@@ -6,11 +6,12 @@ from urllib.parse import unquote
 from google.oauth2 import service_account
 
 # Importe de scrappers
-from src.scrapers.proforma import ProformaScraperSelenium
-from src.scrapers.otic import OticScraperSelenium
-from src.scrapers.proaconcagua import ProAconcaguaScraperSelenium
+from src.scrapers.proforma import ProformaScraperSelenium # <-- Proforma
+from src.scrapers.otic import OticScraperSelenium # <-- Otic
+from src.scrapers.proaconcagua import ProAconcaguaScraperSelenium # <-- ProAconcagua
 from src.scrapers.agrocap import AgrocapScraperSelenium # <-- AGROCAP AÑADIDO
-from src.scrapers.banotic import BanoticScraperSelenium
+from src.scrapers.banotic import BanoticScraperSelenium # <-- Banotic
+from src.scrapers.alianzapyme import AlianzaPymeScraperSelenium # <-- AlianzaPyme
 from src.utils.analizador_inteligente import AnalizadorLicitaciones
 from src.utils.document_parser import DocumentAnalyzer
 from src.database.bq_client import BigQueryClient
@@ -60,7 +61,8 @@ def orquestador():
         ("OTIC", OticScraperSelenium()),
         ("Pro Aconcagua", ProAconcaguaScraperSelenium()),
         ("Agrocap", AgrocapScraperSelenium()), # <-- AGROCAP AÑADIDO AQUÍ
-        ("Banotic", BanoticScraperSelenium())
+        ("Banotic", BanoticScraperSelenium()),
+        ("Alianza Pyme", AlianzaPymeScraperSelenium())
     ]
 
     for nombre_portal, scraper in scrapers:
