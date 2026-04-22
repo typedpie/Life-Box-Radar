@@ -12,7 +12,7 @@ class BanoticScraperSelenium:
         self.url_principal = "https://banotic.cl/becas-laborales/" 
         
         self.opciones = Options()
-        #self.opciones.add_argument("--headless=new")
+        self.opciones.add_argument("--headless=new")
         self.opciones.add_argument("--no-sandbox")
         self.opciones.add_argument("--disable-dev-shm-usage")
         self.opciones.add_argument("--window-size=1920,1080")

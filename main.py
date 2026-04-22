@@ -5,7 +5,7 @@ import pandas as pd
 from urllib.parse import unquote
 from google.oauth2 import service_account
 
-# Importamos el escuadrón completo (¡Los 4 espías!)
+# Importe de scrappers
 from src.scrapers.proforma import ProformaScraperSelenium
 from src.scrapers.otic import OticScraperSelenium
 from src.scrapers.proaconcagua import ProAconcaguaScraperSelenium
