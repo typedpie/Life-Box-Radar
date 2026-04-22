@@ -10,6 +10,7 @@ from src.scrapers.proforma import ProformaScraperSelenium
 from src.scrapers.otic import OticScraperSelenium
 from src.scrapers.proaconcagua import ProAconcaguaScraperSelenium
 from src.scrapers.agrocap import AgrocapScraperSelenium # <-- AGROCAP AÑADIDO
+from src.scrapers.banotic import BanoticScraperSelenium
 from src.utils.analizador_inteligente import AnalizadorLicitaciones
 from src.utils.document_parser import DocumentAnalyzer
 from src.database.bq_client import BigQueryClient
@@ -58,7 +59,8 @@ def orquestador():
         ("Proforma", ProformaScraperSelenium()),
         ("OTIC", OticScraperSelenium()),
         ("Pro Aconcagua", ProAconcaguaScraperSelenium()),
-        ("Agrocap", AgrocapScraperSelenium()) # <-- AGROCAP AÑADIDO AQUÍ
+        ("Agrocap", AgrocapScraperSelenium()), # <-- AGROCAP AÑADIDO AQUÍ
+        ("Banotic", BanoticScraperSelenium())
     ]
 
     for nombre_portal, scraper in scrapers:

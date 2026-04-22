@@ -22,7 +22,7 @@ class ProformaScraperSelenium:
         options.add_argument("--no-sandbox")#permiso para correr en linux
         options.add_argument("--disable-dev-shm-usage")#evitar quedarse sin ram 
         options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-        options.add_argument("--headless=new") #invisible
+        #options.add_argument("--headless=new") #invisible
         
         return webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
 
