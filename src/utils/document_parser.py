@@ -118,17 +118,33 @@ class DocumentAnalyzer:
         try:
             df = pd.read_excel(ruta_excel, header=None)
             
-            # 1. PRE-FILTRO: Buscamos palabras clave fila por fila
+            # --- NUEVO PRE-FILTRO ESTRICTO ---
             for index, fila in df.iterrows():
-                texto_fila = " | ".join([str(val).strip() for val in fila.values if pd.notna(val)])
-                coincidencias = [kw.upper() for kw in palabras_clave if kw.lower() in texto_fila.lower()]
+                textos_cortos_validos = []
+                texto_fila_completa = [] # Guardamos toda la info para la IA
+                
+                for val in fila.values:
+                    if pd.notna(val):
+                        val_str = str(val).strip()
+                        texto_fila_completa.append(val_str)
+                        
+                        # Regla: Si tiene 150 caracteres o menos, es candidato para buscar palabras clave
+                        if 0 < len(val_str) <= 150:
+                            textos_cortos_validos.append(val_str)
+
+                # Unimos solo las celdas cortas para hacer la búsqueda
+                texto_para_buscar = " | ".join(textos_cortos_validos).lower()
+                
+                coincidencias = [kw.upper() for kw in palabras_clave if kw.lower() in texto_para_buscar]
 
                 if coincidencias:
+                    # Si encontramos coincidencia, guardamos la fila COMPLETA para que Groq no pierda datos
                     filas_relevantes.append({
                         "id": index + 1,
                         "palabra_clave": coincidencias[0],
-                        "texto": texto_fila
+                        "texto": " | ".join(texto_fila_completa)
                     })
+            # ----------------------------------
 
             if not filas_relevantes:
                 return []
