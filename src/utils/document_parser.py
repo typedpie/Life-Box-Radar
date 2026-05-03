@@ -44,20 +44,23 @@ class DocumentAnalyzer:
             return None
 
     def extraer_lote_con_ia(self, lote_filas):
-        """Envía un lote de filas a Groq para extraer los datos estructurados."""
         texto_batch = ""
         for f in lote_filas:
             texto_batch += f"ID_FILA: {f['id']} | PALABRA_CLAVE: {f['palabra_clave']} | DATOS: {f['texto']}\n"
 
-        prompt_sistema = """Eres un sistema automatizado de extracción de datos. Tu ÚNICO propósito es leer texto crudo y devolver un array JSON válido. NUNCA escribas saludos, explicaciones, ni texto fuera del bloque JSON."""
+        max_reintentos = 3
+        json_estructurado = []
         
-        prompt_usuario = f"""
-        Procesa este lote de filas de un Excel de licitaciones.
+        # ==========================================
+        # FASE 1: EL ORDENADOR (Extracción y Formateo)
+        # ==========================================
+        prompt_sistema_1 = "Eres un autómata extractor de datos. Tu único objetivo es leer texto crudo y devolver un array JSON válido. NO evalúes ni filtres la información, solo ordénala."
         
-        DATOS CRUDOS:
+        prompt_usuario_1 = f"""
+        Procesa este lote de filas de un Excel:
         {texto_batch}
 
-        Devuelve un JSON estricto con esta estructura:
+        Devuelve un JSON estricto con esta estructura (no omitas ninguna fila, conviértelas todas):
         [
             {{
                 "id_fila": <entero>,
@@ -72,36 +75,78 @@ class DocumentAnalyzer:
         ]
         """
         
-        max_reintentos = 3
         for intento in range(max_reintentos):
             try:
-                respuesta = self.client.chat.completions.create(
+                res_1 = self.client.chat.completions.create(
                     messages=[
-                        {"role": "system", "content": prompt_sistema},
-                        {"role": "user", "content": prompt_usuario}
+                        {"role": "system", "content": prompt_sistema_1},
+                        {"role": "user", "content": prompt_usuario_1}
                     ],
                     model=self.modelo_ia,
-                    temperature=0.1, 
+                    temperature=0.0, 
                 )
+                txt_1 = res_1.choices[0].message.content.strip()
+                if txt_1.startswith("```json"): txt_1 = txt_1[7:-3].strip()
+                elif txt_1.startswith("```"): txt_1 = txt_1[3:-3].strip()
                 
-                texto_limpio = respuesta.choices[0].message.content.strip()
-                
-                if texto_limpio.startswith("```json"):
-                    texto_limpio = texto_limpio[7:-3].strip()
-                elif texto_limpio.startswith("```"):
-                    texto_limpio = texto_limpio[3:-3].strip()
-                
-                return json.loads(texto_limpio)
-                
+                json_estructurado = json.loads(txt_1)
+                break # Éxito, salimos del bucle
             except Exception as e:
-                error_str = str(e)
-                # Si Groq nos dice que enviamos mucho (413) o muy rápido (429), hacemos una pausa más larga
-                if '429' in error_str or '413' in error_str:
-                    espera = 15 
-                    logging.warning(f"Límite de velocidad en Groq... pausando {espera} seg (Intento {intento + 1}/{max_reintentos})")
+                if '429' in str(e) or '413' in str(e):
+                    espera = 15
+                    logging.warning(f"Límite en Groq (Fase 1)... pausando {espera}s (Intento {intento + 1}/{max_reintentos})")
                     time.sleep(espera)
                 else:
-                    logging.error(f"Error procesando lote con Groq: {e}")
+                    logging.error(f"Error en Fase 1 con Groq: {e}")
+                    break
+        
+        # Si la Fase 1 falló o devolvió vacío, no seguimos a la Fase 2
+        if not json_estructurado:
+            return []
+
+        # ==========================================
+        # FASE 2: EL JUEZ (Filtro Semántico de Calidad)
+        # ==========================================
+        prompt_sistema_2 = "Eres un analista experto en licitaciones de Recursos Humanos (Power Skills). Tu trabajo es recibir un JSON de cursos, eliminar la basura operativa y devolver solo las oportunidades válidas."
+        
+        prompt_usuario_2 = f"""
+        Analiza el siguiente array de cursos en formato JSON:
+        {json.dumps(json_estructurado, ensure_ascii=False)}
+
+        ⚠️ REGLA DE RECHAZO:
+        Elimina por completo del JSON cualquier objeto cuyo "curso" sea un oficio técnico, manual, operativo, de agricultura o de computación básica (ej: peluquería canina, hornos solares, gastronomía, excel, maquinaria, conducción, costura, etc.).
+        
+        ✅ CRITERIO DE ACEPTACIÓN:
+        Mantén en el JSON solo los objetos cuyo "curso" sea genuinamente sobre habilidades blandas, liderazgo, clima laboral, trabajo en equipo, bienestar, inclusión o normativas laborales (Ley Karin).
+
+        Devuelve ÚNICAMENTE el array JSON resultante. Mantén la misma estructura de los objetos que pasen la prueba. Si ninguno sirve, devuelve: []
+        """
+        
+        for intento in range(max_reintentos):
+            try:
+                res_2 = self.client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": prompt_sistema_2},
+                        {"role": "user", "content": prompt_usuario_2}
+                    ],
+                    model=self.modelo_ia,
+                    temperature=0.0, 
+                )
+                txt_2 = res_2.choices[0].message.content.strip()
+                if txt_2.startswith("```json"): txt_2 = txt_2[7:-3].strip()
+                elif txt_2.startswith("```"): txt_2 = txt_2[3:-3].strip()
+                
+                json_final = json.loads(txt_2)
+                logging.info(f"⚖️ Filtro del Juez: Entraron {len(json_estructurado)} cursos brutos, pasaron la prueba {len(json_final)} cursos de alto valor.")
+                return json_final
+                
+            except Exception as e:
+                if '429' in str(e) or '413' in str(e):
+                    espera = 15
+                    logging.warning(f"Límite en Groq (Fase 2)... pausando {espera}s (Intento {intento + 1}/{max_reintentos})")
+                    time.sleep(espera)
+                else:
+                    logging.error(f"Error en Fase 2 con Groq: {e}")
                     break
                     
         return []
