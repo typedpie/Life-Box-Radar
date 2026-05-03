@@ -86,8 +86,14 @@ class DocumentAnalyzer:
                     temperature=0.0, 
                 )
                 txt_1 = res_1.choices[0].message.content.strip()
-                if txt_1.startswith("```json"): txt_1 = txt_1[7:-3].strip()
-                elif txt_1.startswith("```"): txt_1 = txt_1[3:-3].strip()
+                
+                # 🛡️ EXTRACCIÓN DEFENSIVA DE JSON (FASE 1)
+                inicio = txt_1.find('[')
+                fin = txt_1.rfind(']') + 1
+                if inicio != -1 and fin != -1:
+                    txt_1 = txt_1[inicio:fin]
+                else:
+                    txt_1 = "[]" # Si no hay corchetes, asumimos array vacío
                 
                 json_estructurado = json.loads(txt_1)
                 break # Éxito, salimos del bucle
@@ -97,10 +103,9 @@ class DocumentAnalyzer:
                     logging.warning(f"Límite en Groq (Fase 1)... pausando {espera}s (Intento {intento + 1}/{max_reintentos})")
                     time.sleep(espera)
                 else:
-                    logging.error(f"Error en Fase 1 con Groq: {e}")
+                    logging.error(f"Error en Fase 1 con Groq: {e}\nTexto devuelto por IA: {txt_1}")
                     break
         
-        # Si la Fase 1 falló o devolvió vacío, no seguimos a la Fase 2
         if not json_estructurado:
             return []
 
@@ -133,8 +138,14 @@ class DocumentAnalyzer:
                     temperature=0.0, 
                 )
                 txt_2 = res_2.choices[0].message.content.strip()
-                if txt_2.startswith("```json"): txt_2 = txt_2[7:-3].strip()
-                elif txt_2.startswith("```"): txt_2 = txt_2[3:-3].strip()
+                
+                # 🛡️ EXTRACCIÓN DEFENSIVA DE JSON (FASE 2)
+                inicio = txt_2.find('[')
+                fin = txt_2.rfind(']') + 1
+                if inicio != -1 and fin != -1:
+                    txt_2 = txt_2[inicio:fin]
+                else:
+                    txt_2 = "[]"
                 
                 json_final = json.loads(txt_2)
                 logging.info(f"⚖️ Filtro del Juez: Entraron {len(json_estructurado)} cursos brutos, pasaron la prueba {len(json_final)} cursos de alto valor.")
