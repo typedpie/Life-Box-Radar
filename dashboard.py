@@ -15,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. INYECCIÓN DE CSS (Adaptable a Modo Claro y Oscuro)
+# 2. INYECCIÓN DE CSS
 st.markdown("""
 <style>
     .dashboard-card {
@@ -188,12 +188,21 @@ else:
                 
                 cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
                 
-                # REPARACIÓN 1: Láser de precisión (Vincula el Link Y el Curso)
+                # LÁSER DE ALTA PRECISIÓN: Vincula Link + Curso + Región + Comuna
                 condiciones_ocultar = []
                 for _, fila in filas_a_descartar.iterrows():
                     link_safe = str(fila['Link Excel']).replace("'", "\\'")
                     curso_safe = str(fila['Curso']).replace("'", "\\'")
-                    condiciones_ocultar.append(f"(link_documento = '{link_safe}' AND curso = '{curso_safe}')")
+                    region_safe = str(fila['Región']).replace("'", "\\'")
+                    comuna_safe = str(fila['Comuna']).replace("'", "\\'")
+                    
+                    # Usamos COALESCE en SQL para que si el dato en la nube dice NULL, coincida con 'No especificado'
+                    condiciones_ocultar.append(
+                        f"(link_documento = '{link_safe}' "
+                        f"AND curso = '{curso_safe}' "
+                        f"AND COALESCE(region, 'No especificado') = '{region_safe}' "
+                        f"AND COALESCE(comuna, 'No especificado') = '{comuna_safe}')"
+                    )
                 
                 where_sql = " OR ".join(condiciones_ocultar)
                 
@@ -208,15 +217,16 @@ else:
                     st.cache_data.clear()
                     st.rerun()
 
-# REPARACIÓN 2: Sacamos la Papelera fuera del bloque condicional
+# --- PAPELERA DE RECICLAJE ACTUALIZADA ---
 st.markdown("---")
 ver_papelera = st.toggle("🗑️ Abrir Papelera de Reciclaje")
 
 if ver_papelera:
     st.markdown("#### Documentos Descartados")
     
+    # Añadimos 'region' y 'comuna' a la consulta de la papelera
     query_papelera = f"""
-        SELECT fecha_deteccion, titulo_llamado_web, curso, link_documento
+        SELECT fecha_deteccion, titulo_llamado_web, curso, region, comuna, link_documento
         FROM `{ID_PROYECTO}.licitaciones.oportunidades`
         WHERE estado = 'Descartado'
         ORDER BY fecha_deteccion DESC
@@ -227,6 +237,10 @@ if ver_papelera:
         if df_papelera.empty:
             st.info("La papelera está vacía.")
         else:
+            # Llenamos vacíos igual que en la vista principal para no tener problemas de coincidencia
+            df_papelera['region'] = df_papelera['region'].fillna('No especificado').astype(str)
+            df_papelera['comuna'] = df_papelera['comuna'].fillna('No especificado').astype(str)
+            
             df_papelera.insert(0, '♻️ Restaurar', False)
             
             df_papelera_edit = st.data_editor(
@@ -234,7 +248,7 @@ if ver_papelera:
                 column_config={
                     "♻️ Restaurar": st.column_config.CheckboxColumn("Restaurar", help="Marca para devolver a la vista principal")
                 },
-                disabled=['fecha_deteccion', 'titulo_llamado_web', 'curso', 'link_documento'],
+                disabled=['fecha_deteccion', 'titulo_llamado_web', 'curso', 'region', 'comuna', 'link_documento'],
                 use_container_width=True,
                 hide_index=True
             )
@@ -244,12 +258,20 @@ if ver_papelera:
             if not filas_a_restaurar.empty:
                 if st.button("✨ Confirmar Restauración", type="primary"):
                     
-                    # REPARACIÓN 1 (Para restaurar): Láser de precisión (Vincula el Link Y el Curso)
+                    # LÁSER DE ALTA PRECISIÓN PARA RESTAURAR
                     condiciones_restaurar = []
                     for _, fila in filas_a_restaurar.iterrows():
                         link_safe = str(fila['link_documento']).replace("'", "\\'")
                         curso_safe = str(fila['curso']).replace("'", "\\'")
-                        condiciones_restaurar.append(f"(link_documento = '{link_safe}' AND curso = '{curso_safe}')")
+                        region_safe = str(fila['region']).replace("'", "\\'")
+                        comuna_safe = str(fila['comuna']).replace("'", "\\'")
+                        
+                        condiciones_restaurar.append(
+                            f"(link_documento = '{link_safe}' "
+                            f"AND curso = '{curso_safe}' "
+                            f"AND COALESCE(region, 'No especificado') = '{region_safe}' "
+                            f"AND COALESCE(comuna, 'No especificado') = '{comuna_safe}')"
+                        )
                     
                     where_sql_restaurar = " OR ".join(condiciones_restaurar)
                     
