@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from google.oauth2 import service_account
 from google.cloud import bigquery
+from streamlit_autorefresh import st_autorefresh # <--- NUEVO MOTOR DE LIVE VIEW
 
 ID_PROYECTO = "proyecto-life-box-licitaciones" 
 RUTA_CREDENCIALES = "credenciales_gcp.json"
@@ -14,6 +15,10 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# --- ACTIVAR EL "LIVE VIEW" ---
+# Refresca el dashboard automáticamente cada 5 minutos (300,000 milisegundos).
+st_autorefresh(interval=300000, limit=None, key="autorefresh_dashboard")
 
 # 2. INYECCIÓN DE CSS
 st.markdown("""
@@ -63,7 +68,8 @@ if not os.path.exists(RUTA_CREDENCIALES):
 credenciales = service_account.Credentials.from_service_account_file(RUTA_CREDENCIALES)
 
 # 4. EXTRACCIÓN DE DATOS DESDE BIGQUERY
-@st.cache_data(ttl=600)
+# Ajustamos la caché a 300 segundos (5 mins) para que coincida con la recarga automática
+@st.cache_data(ttl=300) 
 def cargar_oportunidades_bq():
     try:
         query = f"""
@@ -101,7 +107,6 @@ with st.sidebar:
     st.markdown("### 🔍 Filtros de Búsqueda")
     
     if not df_base.empty:
-        # Extraemos fechas únicas (solo el día, omitiendo la hora)
         fechas_unicas = sorted(list(set([d.split(" ")[0] for d in df_base['Detectado el']])), reverse=True)
         
         lista_otics = ["Todas"] + sorted(df_base['OTIC'].unique().tolist())
@@ -117,8 +122,8 @@ with st.sidebar:
         
     st.markdown("---")
     st.markdown("### ⚙️ Estado del Sistema")
-    st.success("Base de Datos: Conectada")
-    if st.button("🔄 Forzar Actualización Ahora", use_container_width=True):
+    st.success("🟢 Live View: Activo (Auto-refresco cada 5 min)")
+    if st.button("🔄 Actualizar Manualmente", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
@@ -146,7 +151,6 @@ st.divider()
 if df_base.empty:
     st.info("No hay oportunidades activas en la base de datos en este momento.")
 else:
-    # Ahora solo dibujamos 2 columnas para el resumen
     kpi1, kpi2 = st.columns(2)
     
     total_ops = len(df_filtrado)
@@ -184,7 +188,6 @@ else:
                 
                 cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
                 
-                # LÁSER DE ALTA PRECISIÓN INTACTO
                 condiciones_ocultar = []
                 for _, fila in filas_a_descartar.iterrows():
                     link_safe = str(fila['Link Excel']).replace("'", "\\'")
