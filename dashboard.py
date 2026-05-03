@@ -44,8 +44,6 @@ st.markdown("""
     }
     .val-blue { color: #4A90E2 !important; }
     .val-orange { color: #F5A623 !important; }
-    .val-green { color: #2ecc71 !important; }
-    .val-purple { color: #9b59b6 !important; }
 
     [data-testid="stSidebar"] img {
         background-color: #ffffff; 
@@ -89,7 +87,7 @@ def cargar_oportunidades_bq():
 
 df_base = cargar_oportunidades_bq()
 
-# 5. SIDEBAR: BRANDING Y FILTROS
+# 5. SIDEBAR: BRANDING Y FILTROS MINIMALISTAS
 with st.sidebar:
     st.markdown("---")
     col_udd, col_lifebox = st.columns(2)
@@ -103,18 +101,19 @@ with st.sidebar:
     st.markdown("### 🔍 Filtros de Búsqueda")
     
     if not df_base.empty:
-        lista_otics = ["Todos"] + sorted(df_base['OTIC'].unique().tolist())
-        lista_regiones = ["Todas"] + sorted(df_base['Región'].unique().tolist())
-        lista_comunas = ["Todas"] + sorted(df_base['Comuna'].unique().tolist())
-        lista_gatillos = ["Todos"] + sorted(df_base['Gatillo'].unique().tolist())
+        # Extraemos fechas únicas (solo el día, omitiendo la hora)
+        fechas_unicas = sorted(list(set([d.split(" ")[0] for d in df_base['Detectado el']])), reverse=True)
         
+        lista_otics = ["Todas"] + sorted(df_base['OTIC'].unique().tolist())
+        lista_gatillos = ["Todos"] + sorted(df_base['Gatillo'].unique().tolist())
+        lista_fechas = ["Todas"] + fechas_unicas
+        
+        filtro_fecha = st.selectbox("📅 Fecha de Detección", lista_fechas)
         filtro_otic = st.selectbox("📌 OTIC", lista_otics)
-        filtro_region = st.selectbox("🌎 Región", lista_regiones)
-        filtro_comuna = st.selectbox("📍 Comuna", lista_comunas)
         filtro_gatillo = st.selectbox("🎯 Gatillo (Palabra Clave)", lista_gatillos)
     else:
         st.info("Filtros no disponibles (Base de datos vacía)")
-        filtro_otic = filtro_region = filtro_comuna = filtro_gatillo = "Todos"
+        filtro_otic = filtro_gatillo = filtro_fecha = "Todos"
         
     st.markdown("---")
     st.markdown("### ⚙️ Estado del Sistema")
@@ -126,10 +125,12 @@ with st.sidebar:
 # 6. LÓGICA DE APLICACIÓN DE FILTROS
 df_filtrado = df_base.copy()
 if not df_filtrado.empty:
-    if filtro_otic != "Todos": df_filtrado = df_filtrado[df_filtrado['OTIC'] == filtro_otic]
-    if filtro_region != "Todas": df_filtrado = df_filtrado[df_filtrado['Región'] == filtro_region]
-    if filtro_comuna != "Todas": df_filtrado = df_filtrado[df_filtrado['Comuna'] == filtro_comuna]
-    if filtro_gatillo != "Todos": df_filtrado = df_filtrado[df_filtrado['Gatillo'] == filtro_gatillo]
+    if filtro_fecha != "Todas": 
+        df_filtrado = df_filtrado[df_filtrado['Detectado el'].str.startswith(filtro_fecha)]
+    if filtro_otic != "Todas": 
+        df_filtrado = df_filtrado[df_filtrado['OTIC'] == filtro_otic]
+    if filtro_gatillo != "Todos": 
+        df_filtrado = df_filtrado[df_filtrado['Gatillo'] == filtro_gatillo]
 
 # 7. CABECERA PRINCIPAL
 col_logo, col_titulo = st.columns([1, 8]) 
@@ -145,21 +146,16 @@ st.divider()
 if df_base.empty:
     st.info("No hay oportunidades activas en la base de datos en este momento.")
 else:
-    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    # Ahora solo dibujamos 2 columnas para el resumen
+    kpi1, kpi2 = st.columns(2)
     
     total_ops = len(df_filtrado)
-    total_regiones = df_filtrado['Región'].nunique() if total_ops > 0 else 0
-    total_comunas = df_filtrado['Comuna'].nunique() if total_ops > 0 else 0
-    total_alumnos = pd.to_numeric(df_filtrado['Alumnos'], errors='coerce').fillna(0).sum() if total_ops > 0 else 0
+    total_otics = df_filtrado['OTIC'].nunique() if total_ops > 0 else 0
     
     with kpi1:
         st.markdown(f"""<div class="dashboard-card"><div class="card-title">Oportunidades</div><p class="card-value val-blue">{total_ops}</p></div>""", unsafe_allow_html=True)
     with kpi2:
-        st.markdown(f"""<div class="dashboard-card"><div class="card-title">Regiones Activas</div><p class="card-value val-orange">{total_regiones}</p></div>""", unsafe_allow_html=True)
-    with kpi3:
-        st.markdown(f"""<div class="dashboard-card"><div class="card-title">Comunas / Localidades</div><p class="card-value val-green">{total_comunas}</p></div>""", unsafe_allow_html=True)
-    with kpi4:
-        st.markdown(f"""<div class="dashboard-card"><div class="card-title">Cupos (Aprox)</div><p class="card-value val-purple">{int(total_alumnos)}</p></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="dashboard-card"><div class="card-title">OTICs Activas</div><p class="card-value val-orange">{total_otics}</p></div>""", unsafe_allow_html=True)
 
     st.markdown("### 📋 Repositorio de Licitaciones")
     if total_ops == 0:
@@ -188,7 +184,7 @@ else:
                 
                 cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
                 
-                # LÁSER DE ALTA PRECISIÓN: Vincula Link + Curso + Región + Comuna
+                # LÁSER DE ALTA PRECISIÓN INTACTO
                 condiciones_ocultar = []
                 for _, fila in filas_a_descartar.iterrows():
                     link_safe = str(fila['Link Excel']).replace("'", "\\'")
@@ -196,7 +192,6 @@ else:
                     region_safe = str(fila['Región']).replace("'", "\\'")
                     comuna_safe = str(fila['Comuna']).replace("'", "\\'")
                     
-                    # Usamos COALESCE en SQL para que si el dato en la nube dice NULL, coincida con 'No especificado'
                     condiciones_ocultar.append(
                         f"(link_documento = '{link_safe}' "
                         f"AND curso = '{curso_safe}' "
@@ -217,14 +212,13 @@ else:
                     st.cache_data.clear()
                     st.rerun()
 
-# --- PAPELERA DE RECICLAJE ACTUALIZADA ---
+# --- PAPELERA DE RECICLAJE ---
 st.markdown("---")
 ver_papelera = st.toggle("🗑️ Abrir Papelera de Reciclaje")
 
 if ver_papelera:
     st.markdown("#### Documentos Descartados")
     
-    # Añadimos 'region' y 'comuna' a la consulta de la papelera
     query_papelera = f"""
         SELECT fecha_deteccion, titulo_llamado_web, curso, region, comuna, link_documento
         FROM `{ID_PROYECTO}.licitaciones.oportunidades`
@@ -237,7 +231,6 @@ if ver_papelera:
         if df_papelera.empty:
             st.info("La papelera está vacía.")
         else:
-            # Llenamos vacíos igual que en la vista principal para no tener problemas de coincidencia
             df_papelera['region'] = df_papelera['region'].fillna('No especificado').astype(str)
             df_papelera['comuna'] = df_papelera['comuna'].fillna('No especificado').astype(str)
             
@@ -258,7 +251,6 @@ if ver_papelera:
             if not filas_a_restaurar.empty:
                 if st.button("✨ Confirmar Restauración", type="primary"):
                     
-                    # LÁSER DE ALTA PRECISIÓN PARA RESTAURAR
                     condiciones_restaurar = []
                     for _, fila in filas_a_restaurar.iterrows():
                         link_safe = str(fila['link_documento']).replace("'", "\\'")
