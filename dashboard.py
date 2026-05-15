@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from google.oauth2 import service_account
 from google.cloud import bigquery
-from streamlit_autorefresh import st_autorefresh # <--- NUEVO MOTOR DE LIVE VIEW
+from streamlit_autorefresh import st_autorefresh
 
 ID_PROYECTO = "proyecto-life-box-licitaciones" 
 RUTA_CREDENCIALES = "credenciales_gcp.json"
@@ -17,7 +17,6 @@ st.set_page_config(
 )
 
 # --- ACTIVAR EL "LIVE VIEW" ---
-# Refresca el dashboard automáticamente cada 5 minutos (300,000 milisegundos).
 st_autorefresh(interval=300000, limit=None, key="autorefresh_dashboard")
 
 # 2. INYECCIÓN DE CSS
@@ -68,7 +67,6 @@ if not os.path.exists(RUTA_CREDENCIALES):
 credenciales = service_account.Credentials.from_service_account_file(RUTA_CREDENCIALES)
 
 # 4. EXTRACCIÓN DE DATOS DESDE BIGQUERY
-# Ajustamos la caché a 300 segundos (5 mins) para que coincida con la recarga automática
 @st.cache_data(ttl=300) 
 def cargar_oportunidades_bq():
     try:
@@ -86,6 +84,10 @@ def cargar_oportunidades_bq():
             
             for col in ['OTIC', 'Región', 'Comuna', 'Gatillo']:
                 df[col] = df[col].fillna('No especificado').astype(str)
+                
+            # NUEVO: Creamos una columna puramente matemática oculta para que el Slider pueda calcular
+            df['Alumnos_Num'] = pd.to_numeric(df['Alumnos'], errors='coerce').fillna(0).astype(int)
+            
         return df
     except Exception as e:
         st.error(f"Error conectando a la base de datos: {e}")
@@ -93,7 +95,7 @@ def cargar_oportunidades_bq():
 
 df_base = cargar_oportunidades_bq()
 
-# 5. SIDEBAR: BRANDING Y FILTROS MINIMALISTAS
+# 5. SIDEBAR: BRANDING Y FILTROS
 with st.sidebar:
     st.markdown("---")
     col_udd, col_lifebox = st.columns(2)
@@ -113,12 +115,27 @@ with st.sidebar:
         lista_gatillos = ["Todos"] + sorted(df_base['Gatillo'].unique().tolist())
         lista_fechas = ["Todas"] + fechas_unicas
         
+        # Calculamos el máximo de alumnos para ajustar el slider automáticamente
+        max_alumnos = int(df_base['Alumnos_Num'].max())
+        if max_alumnos == 0: max_alumnos = 100 # Valor por defecto si no hay datos
+        
         filtro_fecha = st.selectbox("📅 Fecha de Detección", lista_fechas)
         filtro_otic = st.selectbox("📌 OTIC", lista_otics)
         filtro_gatillo = st.selectbox("🎯 Gatillo (Palabra Clave)", lista_gatillos)
+        
+        # NUEVO SLIDER INTERACTIVO
+        st.markdown("---")
+        filtro_alumnos = st.slider(
+            "👥 Rango de Cupos (Alumnos)", 
+            min_value=0, 
+            max_value=max_alumnos, 
+            value=(0, max_alumnos), # Selecciona todo el rango por defecto
+            help="Desliza para buscar cursos que tengan una cantidad específica de alumnos."
+        )
     else:
         st.info("Filtros no disponibles (Base de datos vacía)")
         filtro_otic = filtro_gatillo = filtro_fecha = "Todos"
+        filtro_alumnos = (0, 0)
         
     st.markdown("---")
     st.markdown("### ⚙️ Estado del Sistema")
@@ -136,6 +153,9 @@ if not df_filtrado.empty:
         df_filtrado = df_filtrado[df_filtrado['OTIC'] == filtro_otic]
     if filtro_gatillo != "Todos": 
         df_filtrado = df_filtrado[df_filtrado['Gatillo'] == filtro_gatillo]
+        
+    # Aplicamos el filtro matemático del Slider (Mayor o igual al mínimo, Menor o igual al máximo)
+    df_filtrado = df_filtrado[(df_filtrado['Alumnos_Num'] >= filtro_alumnos[0]) & (df_filtrado['Alumnos_Num'] <= filtro_alumnos[1])]
 
 # 7. CABECERA PRINCIPAL
 col_logo, col_titulo = st.columns([1, 8]) 
@@ -172,7 +192,8 @@ else:
             df_interactivo,
             column_config={
                 "🗑️ Descartar": st.column_config.CheckboxColumn("Descartar", help="Marca esta casilla para enviar a la lista negra"),
-                "Link Excel": st.column_config.LinkColumn("Descargar Base")
+                "Link Excel": st.column_config.LinkColumn("Descargar Base"),
+                "Alumnos_Num": None # Mantiene oculta la columna matemática temporal para que no estorbe visualmente
             },
             disabled=['Detectado el', 'Llamado', 'OTIC', 'Gatillo', 'Curso', 'Región', 'Comuna', 'Modalidad', 'Link Excel'],
             use_container_width=True,
