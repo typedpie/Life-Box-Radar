@@ -13,9 +13,11 @@ class OticSofofaScraperSelenium:
         self.url_principal = "https://www.oticsofofa.cl/becas-laborales/" 
         
         self.opciones = Options()
-        #self.opciones.add_argument("--headless=new")
+        self.opciones.add_argument("--headless") # Sin el "=new" es más estable en servidores
         self.opciones.add_argument("--no-sandbox")
-        self.opciones.add_argument("--disable-dev-shm-usage")
+        self.opciones.add_argument("--disable-dev-shm-usage") # Evita que GitHub Actions se quede sin memoria
+        self.opciones.add_argument("--disable-gpu") # Desactiva el motor gráfico (vital en Linux)
+        self.opciones.add_argument("--disable-software-rasterizer")
         self.opciones.add_argument("--window-size=1920,1080")
 
     def fetch_tender_links(self):
