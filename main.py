@@ -88,7 +88,7 @@ def orquestador():
 
         logging.info(f"🔍 Evaluando {len(enlaces)} documentos encontrados en {nombre_portal}...")
         planes_detectados = []
-        links_pdfs = [] # <--- NUEVA LISTA PARA PDFs
+        links_pdfs = [] 
         
         for link in enlaces:
             nombre = unquote(link.split('/')[-1].split('?')[0].strip())
@@ -111,7 +111,7 @@ def orquestador():
                 lector = DocumentAnalyzer()
                 
                 # ==========================================
-                # NUEVO: EXTRACCIÓN DE FECHA DESDE EL PDF
+                # EXTRACCIÓN DE FECHA DESDE EL PDF
                 # ==========================================
                 fecha_cierre = "No especificada"
                 estado_licitacion = "Activo"
@@ -140,7 +140,29 @@ def orquestador():
                     
                 if url_pdf_fecha:
                     print(f"📄 Descargando PDF para extraer fecha: {unquote(url_pdf_fecha.split('/')[-1])}")
-                    
+                    ruta_pdf = lector.descargar_archivo(url_pdf_fecha)
+                    if ruta_pdf:
+                        fecha_cierre = lector.extraer_fecha_pdf(ruta_pdf)
+                        os.remove(ruta_pdf) 
+                        
+                        # LOGICA DE VENCIMIENTO
+                        if fecha_cierre != "No especificada":
+                            try:
+                                fecha_limite_dt = pd.to_datetime(fecha_cierre, format='%Y-%m-%d')
+                                fecha_hoy_dt = pd.Timestamp.now('America/Santiago').normalize().tz_localize(None)
+                                
+                                if fecha_limite_dt < fecha_hoy_dt:
+                                    estado_licitacion = "Vencido"
+                                    print(f"⚠️ LICITACIÓN EXPIRADA: La fecha de cierre ({fecha_cierre}) ya pasó.")
+                                else:
+                                    print(f"✅ LICITACIÓN VIGENTE: Cierra el {fecha_cierre}.")
+                            except Exception as e:
+                                logging.warning(f"No se pudo calcular el vencimiento para la fecha: {fecha_cierre}")
+                # ==========================================
+
+                # ==========================================
+                # EXTRACCIÓN DE CURSOS DEL EXCEL
+                # ==========================================
                 ruta = lector.descargar_archivo(url_ganador)
                 
                 if ruta:
