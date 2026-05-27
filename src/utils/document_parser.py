@@ -15,7 +15,7 @@ class DocumentAnalyzer:
         self.api_key = os.environ.get("GROQ_API_KEY")
         self.client = Groq(api_key=self.api_key) if self.api_key else None
         
-        # Modelo Llama 3 de 70 billones de parámetros 
+        # 🎯 NUEVO MODELO: Versión 3.1 (Actualizado, rápido y con alto límite)
         self.modelo_ia = "llama-3.1-8b-instant" 
         
         self.temp_dir = "temp_docs"
@@ -70,12 +70,13 @@ class DocumentAnalyzer:
             Analiza el siguiente extracto de las bases de una licitación y encuentra la FECHA LÍMITE o MÁXIMA PARA LA "RECEPCIÓN DE OFERTAS", "RECEPCIÓN DE PROPUESTAS" o "POSTULACIÓN".
             
             TEXTO DEL DOCUMENTO:
-            {texto_pdf[:6000]} 
+            {texto_pdf[:4000]} 
             
             REGLAS:
             1. Devuelve ÚNICAMENTE la fecha en formato estricto YYYY-MM-DD.
             2. Ejemplo: si dice "13 de febrero de 2026 a las 18:00hrs", debes devolver exactamente: 2026-02-13
-            3. Si no encuentras la fecha límite de recepción de ofertas, devuelve exactamente: No especificada
+            3. NO ESCRIBAS NADA MÁS. NI INTRODUCCIONES NI EXPLICACIONES. SOLO LA FECHA.
+            4. Si no la encuentras, responde: No especificada
             """
             
             respuesta = self.client.chat.completions.create(
@@ -85,6 +86,7 @@ class DocumentAnalyzer:
                 ],
                 model=self.modelo_ia,
                 temperature=0.0, 
+                max_tokens=20 # <-- CORREA DE MEMORIA: Solo le dejamos usar 20 tokens, evita que hable de más y ahorra payload.
             )
             
             fecha_encontrada = respuesta.choices[0].message.content.strip()
@@ -106,7 +108,7 @@ class DocumentAnalyzer:
         max_reintentos = 3
         json_estructurado = []
         
-        prompt_sistema_1 = "Eres un autómata extractor de datos. Tu único objetivo es leer texto crudo y devolver un array JSON válido. NO evalúes ni filtres la información, solo ordénala."
+        prompt_sistema_1 = "Eres un autómata extractor de datos. Tu único objetivo es leer texto crudo y devolver un array JSON válido. NO evalúes ni filtres la información, solo ordénala. Inicia tu respuesta directamente con [ y termina con ]."
         
         prompt_usuario_1 = f"""
         Procesa este lote de filas de un Excel:
@@ -135,10 +137,20 @@ class DocumentAnalyzer:
                         {"role": "user", "content": prompt_usuario_1}
                     ],
                     model=self.modelo_ia,
-                    temperature=0.0, 
+                    temperature=0.0,
+                    max_tokens=1500 # <-- CORREA DE MEMORIA: Soluciona el error 413 Payload Too Large
                 )
                 txt_1 = res_1.choices[0].message.content.strip()
                 
+                # Limpieza robusta de Markdown evitando caracteres conflictivos
+                md_ticks = chr(96) * 3
+                md_json = md_ticks + "json"
+                
+                if md_json in txt_1: 
+                    txt_1 = txt_1.split(md_json)[1].split(md_ticks)[0].strip()
+                elif md_ticks in txt_1: 
+                    txt_1 = txt_1.split(md_ticks)[1].split(md_ticks)[0].strip()
+
                 inicio = txt_1.find('[')
                 fin = txt_1.rfind(']') + 1
                 if inicio != -1 and fin != -1:
@@ -146,21 +158,25 @@ class DocumentAnalyzer:
                 else:
                     txt_1 = "[]"
                 
+                # Si el texto está vacío, forzamos un error para que reintente
+                if not txt_1 or txt_1 == "[]":
+                    raise ValueError("JSON vacío devuelto por la IA")
+
                 json_estructurado = json.loads(txt_1)
                 break
             except Exception as e:
                 if '429' in str(e) or '413' in str(e):
-                    espera = 35 # <--- AUMENTADO A 35 SEGUNDOS
+                    espera = 20 
                     logging.warning(f"Límite en Groq (Fase 1)... pausando {espera}s (Intento {intento + 1}/{max_reintentos})")
                     time.sleep(espera)
                 else:
-                    logging.error(f"Error en Fase 1 con Groq: {e}\nTexto devuelto por IA: {txt_1}")
-                    break
+                    logging.warning(f"Error parseando JSON en Fase 1, reintentando...: {e}")
+                    time.sleep(5) # Ya NO se rinde, reintenta
         
         if not json_estructurado:
             return []
 
-        prompt_sistema_2 = "Eres un analista experto en licitaciones de Recursos Humanos (Power Skills). Tu trabajo es recibir un JSON de cursos, eliminar la basura operativa y devolver solo las oportunidades válidas."
+        prompt_sistema_2 = "Eres un analista experto en licitaciones de Recursos Humanos (Power Skills). Tu trabajo es recibir un JSON de cursos, eliminar la basura operativa y devolver solo las oportunidades válidas. Inicia tu respuesta directamente con [ y termina con ]."
         
         prompt_usuario_2 = f"""
         Analiza el siguiente array de cursos en formato JSON:
@@ -183,10 +199,19 @@ class DocumentAnalyzer:
                         {"role": "user", "content": prompt_usuario_2}
                     ],
                     model=self.modelo_ia,
-                    temperature=0.0, 
+                    temperature=0.0,
+                    max_tokens=1500 # <-- CORREA DE MEMORIA
                 )
                 txt_2 = res_2.choices[0].message.content.strip()
                 
+                md_ticks = chr(96) * 3
+                md_json = md_ticks + "json"
+                
+                if md_json in txt_2: 
+                    txt_2 = txt_2.split(md_json)[1].split(md_ticks)[0].strip()
+                elif md_ticks in txt_2: 
+                    txt_2 = txt_2.split(md_ticks)[1].split(md_ticks)[0].strip()
+
                 inicio = txt_2.find('[')
                 fin = txt_2.rfind(']') + 1
                 if inicio != -1 and fin != -1:
@@ -200,18 +225,18 @@ class DocumentAnalyzer:
                 
             except Exception as e:
                 if '429' in str(e) or '413' in str(e):
-                    espera = 35 # <--- AUMENTADO A 35 SEGUNDOS
+                    espera = 20 
                     logging.warning(f"Límite en Groq (Fase 2)... pausando {espera}s (Intento {intento + 1}/{max_reintentos})")
                     time.sleep(espera)
                 else:
-                    logging.error(f"Error en Fase 2 con Groq: {e}")
-                    break
+                    logging.warning(f"Error parseando JSON en Fase 2, reintentando...: {e}")
+                    time.sleep(5)
                     
         return []
 
     def analizar_excel(self, ruta_excel, palabras_clave):
         if not self.client:
-            logging.error("No se encontró GROQ_API_KEY. Asegúrate de que el Secret de GitHub esté configurado.")
+            logging.error("No se encontró GROQ_API_KEY.")
             return []
 
         logging.info(f"Escaneando interior del Excel: {ruta_excel}...")
@@ -269,8 +294,8 @@ class DocumentAnalyzer:
                     })
                 
                 if i + tamano_lote < len(filas_relevantes):
-                    logging.info("⏱️ Enfriando el motor de Groq por 45 segundos para respetar los límites...")
-                    time.sleep(45) # <--- AUMENTADO A 45 SEGUNDOS
+                    logging.info("⏱️ Enfriando el motor de Groq por 15 segundos para respetar los límites...")
+                    time.sleep(15) 
                     
             return resultados_finales
             
