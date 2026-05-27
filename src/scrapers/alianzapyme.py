@@ -19,7 +19,7 @@ class AlianzaPymeScraperSelenium:
         self.opciones.add_argument("--window-size=1920,1080")
 
     def fetch_tender_links(self):
-        # 🎯 DINÁMICO: El bot lee el reloj del servidor y busca el año actual automáticamente (2026, 2027...)
+        
         anio_actual = str(datetime.now().year) 
         logging.info(f"Iniciando exploración en Alianza Pyme: {self.url_principal}")
         

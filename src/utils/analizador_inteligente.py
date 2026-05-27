@@ -124,7 +124,7 @@ class AnalizadorLicitaciones:
             return None
         
         logging.info(f"Resolviendo conflicto de versiones entre {len(lista_nombres_planes)} archivos...")
-        # Ordenamos la lista basándonos en la fecha que encontramos en el nombre
+        # Ordeno la lista en base al nombre
         planes_ordenados = sorted(lista_nombres_planes, key=self.extraer_fecha_de_nombre, reverse=True)
         
         ganador = planes_ordenados[0]
@@ -135,20 +135,17 @@ class AnalizadorLicitaciones:
         """Abre el Excel ganador, lee los cursos y busca las palabras clave."""
         logging.info(f"Analizando cursos en: {ruta_excel}")
         try:
-            # skiprows=13 le dice a pandas que ignore las primeras 13 filas de logos y títulos
-            # (Este número lo ajustaremos viendo el Excel real, pero por la data que enviaste, ronda la 13 o 14)
+            
             df = pd.read_excel(ruta_excel, skiprows=13)
             
-            # Limpiamos los nombres de las columnas para evitar errores de espacios
+            # Limpieza de nombres en la lista
             df.columns = df.columns.str.strip().str.lower()
             
             cursos_encontrados = []
             
-            # Asumimos que hay una columna llamada "nombre del curso" o "temática"
-            # Iteramos sobre las filas para buscar las palabras clave
-            # (Aquí usaremos una aproximación, ya que no sé el nombre exacto de la columna en Proforma)
+            
             for index, fila in df.iterrows():
-                # Convertimos toda la fila a texto para buscar las palabras
+                
                 texto_fila = str(fila.values).lower() 
                 
                 coincidencias = [kw for kw in self.keywords_negocio if kw in texto_fila]
@@ -168,7 +165,7 @@ class AnalizadorLicitaciones:
 if __name__ == "__main__":
     analizador = AnalizadorLicitaciones()
     
-    # Simulamos los archivos que encontraste
+    # Simulacion de archivos
     archivos_encontrados = [
         "Acta-Apertura-Propuestas-1ra-licitacion-2026.pdf",
         "PLAN-DE-CAPACITACION-6TA-ANO-2025-con-correcciones.xlsx",

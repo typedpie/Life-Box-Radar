@@ -19,7 +19,7 @@ class AgrocapScraperSelenium:
         self.opciones.add_argument("--window-size=1920,1080")
 
     def fetch_tender_links(self):
-        # 🔴 PARA PROBAR: Pon "2025" temporalmente
+        
         anio_actual = str(datetime.now().year) 
         logging.info(f"Iniciando exploración en Agrocap: {self.url_principal}")
         
@@ -36,23 +36,23 @@ class AgrocapScraperSelenium:
             url_subpagina = None
             
             try:
-                # 1. Buscamos TODOS los títulos que digan el año
+                # 1. Titulos que contengan el año
                 xpath_textos = f"//div[contains(@class, 'elementor-widget-heading') and contains(., '{anio_actual}')]"
                 textos_anio = driver.find_elements(By.XPATH, xpath_textos)
                 
                 for nodo in textos_anio:
                     try:
-                        # 2. Subimos estrictamente a la 'envoltura' (widget-wrap) más cercana que agrupa a ESTE texto con su ícono
+                        
                         envoltura = nodo.find_element(By.XPATH, "./ancestor::div[contains(@class, 'elementor-widget-wrap')][1]")
                         
-                        # 3. Buscamos el enlace (a) que vive dentro de esta misma envoltura pequeña
+                        # 3. Busco el enlace (a) que vive dentro de esta misma envoltura pequeña
                         enlace = envoltura.find_element(By.XPATH, ".//a[@href]")
                         url_subpagina = enlace.get_attribute("href")
                         
                         if url_subpagina:
-                            break # Si lo encontramos con éxito, rompemos el ciclo
+                            break # Romper ciclo si se encuentrs
                     except Exception:
-                        continue # Si este texto no era el calendario, probamos con el siguiente "2025" de la página
+                        continue # 
                 
                 if url_subpagina:
                     logging.info(f"¡Calendario {anio_actual} detectado de forma aislada! Viajando a la bóveda: {url_subpagina}")
@@ -64,12 +64,12 @@ class AgrocapScraperSelenium:
                 logging.error(f"Error en Fase 1: {e}")
                 return enlaces, titulo_encontrado
 
-            # --- FASE 2: CIRUGÍA DE CÓDIGO (DOM SLICING) ---
+            # --- FASE 2: CIRUGÍA DE CÓDIGO (
             driver.get(url_subpagina)
             time.sleep(3)
 
             try:
-                # 1. Buscamos TODOS los títulos de llamados, excluyendo estrictamente los que estén dentro de un botón (etiqueta 'a')
+                # 1. Busco todos los titulos
                 xpath_titulos = "//*[not(ancestor-or-self::a) and contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'llamado licitación')]"
                 nodos_titulos = driver.find_elements(By.XPATH, xpath_titulos)
 
@@ -81,17 +81,17 @@ class AgrocapScraperSelenium:
                         lista_titulos.append({"nodo": nodo, "texto": texto, "num": int(match.group(1))})
 
                 if lista_titulos:
-                    # 2. Competencia Matemática (Buscamos el Nivel más alto, ej: 2)
+                    
                     max_num = max(t["num"] for t in lista_titulos)
                     
-                    # Identificamos qué lugar de la lista ocupa nuestro campeón
+                    
                     idx_campeon = next(i for i, t in enumerate(lista_titulos) if t["num"] == max_num)
                     
                     titulo_encontrado = lista_titulos[idx_campeon]["texto"]
                     nodo_inicio = lista_titulos[idx_campeon]["nodo"]
                     logging.info(f"🏆 Campeón detectado: {titulo_encontrado}")
 
-                    # 3. Identificamos el "Piso" (El siguiente título en el código, si es que existe)
+                    # 3.
                     nodo_fin = None
                     if idx_campeon + 1 < len(lista_titulos):
                         nodo_fin = lista_titulos[idx_campeon + 1]["nodo"]
@@ -99,7 +99,7 @@ class AgrocapScraperSelenium:
                     else:
                         logging.info("🛑 No hay llamados más antiguos. Se leerá hasta el final de la página.")
 
-                    # 4. LA CIRUGÍA JAVASCRIPT: Cortar exactamente los botones que están en el medio
+                    # 4. Javascript
                     script_js = """
                         var startNode = arguments[0];
                         var endNode = arguments[1];
@@ -124,10 +124,10 @@ class AgrocapScraperSelenium:
                         return result;
                     """
                     
-                    # Inyectamos y ejecutamos el script en Chrome
+                    #ejecuto el script en Chrome
                     links_aislados = driver.execute_script(script_js, nodo_inicio, nodo_fin)
 
-                    # 5. Guardamos solo los documentos útiles
+                    # 5. Guardo
                     for href in links_aislados:
                         if any(ext in href.lower() for ext in ['.pdf', '.docx', '.doc', '.xlsx', '.xls', '.zip']):
                             enlaces.add(href)

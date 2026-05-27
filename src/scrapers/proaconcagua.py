@@ -31,13 +31,13 @@ class ProAconcaguaScraperSelenium:
         try:
             driver.get(self.url)
             
-            # Esperamos a que carguen los bloques de Elementor
+            # Bloque de elementor
             WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.CLASS_NAME, "elementor-text-editor"))
             )
             time.sleep(2)
 
-            # Buscamos cualquier <h2> que contenga el año actual
+            
             xpath_titulo = f"//h2[contains(., '{anio_actual}')]"
             titulos = driver.find_elements(By.XPATH, xpath_titulo)
 
@@ -46,7 +46,7 @@ class ProAconcaguaScraperSelenium:
                 titulo_encontrado = titulo_elemento.text.strip()
                 logging.info(f"¡Título detectado!: '{titulo_encontrado}'")
 
-                # Truco de XPath: Buscamos el PRIMER botón de descarga que esté justo después de este título
+                
                 xpath_boton = "./following::a[contains(@class, 'elementor-button-link')][1]"
                 try:
                     boton = titulo_elemento.find_element(By.XPATH, xpath_boton)

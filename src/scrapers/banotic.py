@@ -18,7 +18,7 @@ class BanoticScraperSelenium:
         self.opciones.add_argument("--window-size=1920,1080")
 
     def fetch_tender_links(self):
-        # 🔴 PARA PROBAR: Forzado a 2025 temporalmente
+        
         anio_actual = str(datetime.now().year) 
         logging.info(f"Iniciando exploración en Banotic: {self.url_principal}")
         
@@ -44,27 +44,27 @@ class BanoticScraperSelenium:
                 logging.info(f"Aún no existe el portal para el año {anio_actual} en Banotic.")
                 return enlaces, titulo_encontrado 
 
-            # --- FASE 2: ENTRAR A LA BÓVEDA Y ESTIRAR LA PÁGINA ---
+            # --- FASE 2: estirar pagina
             driver.get(url_subpagina)
             time.sleep(3)
 
             try:
-                # --- EL MOTOR DE SCROLL INFINITO ---
+                # --- scroll
                 logging.info("Activando motor de scroll para revelar documentos ocultos...")
                 last_height = driver.execute_script("return document.body.scrollHeight")
                 
-                # Le damos un límite máximo de 20 bajadas por seguridad para que nunca se quede en un bucle infinito
+                # limite
                 for intento in range(20): 
-                    # Ordenamos a Chrome bajar hasta el fondo
+                    # chrome llega hasta el final
                     driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
                     
-                    # Le damos 2 segundos a JetEngine para que inyecte los nuevos botones en el HTML
+                    
                     time.sleep(2) 
                     
-                    # Calculamos la nueva altura de la página
+                    # calculo altura de la pagina
                     new_height = driver.execute_script("return document.body.scrollHeight")
                     
-                    # Si la altura es la misma que antes de bajar, significa que ya no hay más documentos
+                    
                     if new_height == last_height:
                         logging.info("Se llegó al fondo real de la página. Todos los documentos están a la vista.")
                         break
@@ -73,7 +73,7 @@ class BanoticScraperSelenium:
                     logging.info(f"Estirando la página... (Scroll {intento + 1})")
                 # -----------------------------------
 
-                # Ahora que la página está 100% desenrollada, aspiramos TODOS los enlaces
+                # saca los enlaces
                 xpath_documentos = "//div[contains(@class, 'jet-listing-dynamic-link')]//a"
                 botones_descarga = driver.find_elements(By.XPATH, xpath_documentos)
 

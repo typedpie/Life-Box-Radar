@@ -85,7 +85,7 @@ def cargar_oportunidades_bq():
             for col in ['OTIC', 'Región', 'Comuna', 'Gatillo']:
                 df[col] = df[col].fillna('No especificado').astype(str)
                 
-            # NUEVO: Creamos una columna puramente matemática oculta para que el Slider pueda calcular
+            # NUEVO: Creo una columna puramente matemática oculta para que el Slider pueda calcular
             df['Alumnos_Num'] = pd.to_numeric(df['Alumnos'], errors='coerce').fillna(0).astype(int)
             
         return df
@@ -115,7 +115,7 @@ with st.sidebar:
         lista_gatillos = ["Todos"] + sorted(df_base['Gatillo'].unique().tolist())
         lista_fechas = ["Todas"] + fechas_unicas
         
-        # Calculamos el máximo de alumnos para ajustar el slider automáticamente
+        # Calculo el máximo de alumnos para ajustar el slider automáticamente
         max_alumnos = int(df_base['Alumnos_Num'].max())
         if max_alumnos == 0: max_alumnos = 100 # Valor por defecto si no hay datos
         
@@ -123,7 +123,7 @@ with st.sidebar:
         filtro_otic = st.selectbox("📌 OTIC", lista_otics)
         filtro_gatillo = st.selectbox("🎯 Gatillo (Palabra Clave)", lista_gatillos)
         
-        # NUEVO SLIDER INTERACTIVO
+        # NUEVO SLIDER 
         st.markdown("---")
         filtro_alumnos = st.slider(
             "👥 Rango de Cupos (Alumnos)", 
@@ -154,7 +154,7 @@ if not df_filtrado.empty:
     if filtro_gatillo != "Todos": 
         df_filtrado = df_filtrado[df_filtrado['Gatillo'] == filtro_gatillo]
         
-    # Aplicamos el filtro matemático del Slider (Mayor o igual al mínimo, Menor o igual al máximo)
+    #filtro matemático del Slider (Mayor o igual al mínimo, Menor o igual al máximo)
     df_filtrado = df_filtrado[(df_filtrado['Alumnos_Num'] >= filtro_alumnos[0]) & (df_filtrado['Alumnos_Num'] <= filtro_alumnos[1])]
 
 # 7. CABECERA PRINCIPAL

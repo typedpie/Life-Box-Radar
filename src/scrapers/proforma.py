@@ -65,12 +65,10 @@ class ProformaScraperSelenium:
                     texto_resumen = acordeon.get_text()
                     
                     if anio_actual in texto_resumen:
-                        
-                        # --- MAGIA AÑADIDA AQUÍ ---
-                        # Buscamos la etiqueta <summary> que es la que tiene el título visible
+                                              
                         etiqueta_titulo = acordeon.find('summary')
                         if etiqueta_titulo:
-                            # get_text(strip=True) limpia los espacios en blanco y saltos de línea basura
+                            
                             titulo_acordeon_encontrado = etiqueta_titulo.get_text(strip=True)
                             logging.info(f"Título exacto capturado: {titulo_acordeon_encontrado}")
                         # --------------------------
@@ -84,7 +82,7 @@ class ProformaScraperSelenium:
                 
             logging.info(f"Extracción completada. Se encontraron {len(enlaces_encontrados)} documentos vigentes.")
             
-            # MODIFICACIÓN CRÍTICA: Ahora devolvemos la lista de links Y el título capturado
+            
             return enlaces_encontrados, titulo_acordeon_encontrado
 
         except Exception as e:
@@ -98,7 +96,7 @@ class ProformaScraperSelenium:
 # Bloque de prueba local actualizado para soportar el nuevo formato
 if __name__ == "__main__":
     scraper = ProformaScraperSelenium()
-    # Ahora desempaquetamos las dos variables que devuelve la función
+    
     links, titulo = scraper.fetch_tender_links()
     
     print(f"\n--- TÍTULO DEL LLAMADO ---")

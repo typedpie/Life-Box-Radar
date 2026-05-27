@@ -14,7 +14,7 @@ class DocumentAnalyzer:
         self.api_key = os.environ.get("GROQ_API_KEY")
         self.client = Groq(api_key=self.api_key) if self.api_key else None
         
-        # Modelo Llama 3 de 70 billones de parámetros (Ultra inteligente y rápido)
+        # Modelo Llama 3 de 70 billones de parámetros 
         self.modelo_ia = "llama-3.3-70b-versatile" 
         
         self.temp_dir = "temp_docs"
@@ -52,7 +52,7 @@ class DocumentAnalyzer:
         json_estructurado = []
         
         # ==========================================
-        # FASE 1: EL ORDENADOR (Extracción y Formateo)
+        # FASE 1: Extracción y Formateo
         # ==========================================
         prompt_sistema_1 = "Eres un autómata extractor de datos. Tu único objetivo es leer texto crudo y devolver un array JSON válido. NO evalúes ni filtres la información, solo ordénala."
         
@@ -87,16 +87,16 @@ class DocumentAnalyzer:
                 )
                 txt_1 = res_1.choices[0].message.content.strip()
                 
-                # 🛡️ EXTRACCIÓN DEFENSIVA DE JSON (FASE 1)
+                # 🛡️ EXTRACCIÓN  DE JSON (FASE 1)
                 inicio = txt_1.find('[')
                 fin = txt_1.rfind(']') + 1
                 if inicio != -1 and fin != -1:
                     txt_1 = txt_1[inicio:fin]
                 else:
-                    txt_1 = "[]" # Si no hay corchetes, asumimos array vacío
+                    txt_1 = "[]" # Si no hay corchetes, asumo array vacío
                 
                 json_estructurado = json.loads(txt_1)
-                break # Éxito, salimos del bucle
+                break # Éxito, rompo el bucle
             except Exception as e:
                 if '429' in str(e) or '413' in str(e):
                     espera = 15
@@ -110,7 +110,7 @@ class DocumentAnalyzer:
             return []
 
         # ==========================================
-        # FASE 2: EL JUEZ (Filtro Semántico de Calidad)
+        # FASE 2:Filtro Semántico de Calidad
         # ==========================================
         prompt_sistema_2 = "Eres un analista experto en licitaciones de Recursos Humanos (Power Skills). Tu trabajo es recibir un JSON de cursos, eliminar la basura operativa y devolver solo las oportunidades válidas."
         
@@ -139,7 +139,7 @@ class DocumentAnalyzer:
                 )
                 txt_2 = res_2.choices[0].message.content.strip()
                 
-                # 🛡️ EXTRACCIÓN DEFENSIVA DE JSON (FASE 2)
+                # 🛡️ EXTRACCIÓN DE JSON (FASE 2)
                 inicio = txt_2.find('[')
                 fin = txt_2.rfind(']') + 1
                 if inicio != -1 and fin != -1:
@@ -177,7 +177,7 @@ class DocumentAnalyzer:
             # --- NUEVO PRE-FILTRO ESTRICTO ---
             for index, fila in df.iterrows():
                 textos_cortos_validos = []
-                texto_fila_completa = [] # Guardamos toda la info para la IA
+                texto_fila_completa = [] # Guardo toda la info para la IA
                 
                 for val in fila.values:
                     if pd.notna(val):
@@ -188,13 +188,13 @@ class DocumentAnalyzer:
                         if 0 < len(val_str) <= 150:
                             textos_cortos_validos.append(val_str)
 
-                # Unimos solo las celdas cortas para hacer la búsqueda
+                # Uno solo las celdas cortas para hacer la búsqueda
                 texto_para_buscar = " | ".join(textos_cortos_validos).lower()
                 
                 coincidencias = [kw.upper() for kw in palabras_clave if kw.lower() in texto_para_buscar]
 
                 if coincidencias:
-                    # Si encontramos coincidencia, guardamos la fila COMPLETA para que Groq no pierda datos
+                    # Si encuentro coincidencia, guardo la fila COMPLETA para que Groq no pierda datos
                     filas_relevantes.append({
                         "id": index + 1,
                         "palabra_clave": coincidencias[0],
@@ -207,7 +207,7 @@ class DocumentAnalyzer:
                 
             logging.info(f"Se encontraron {len(filas_relevantes)} filas clave. Iniciando procesamiento por lotes...")
             
-            # 2. SISTEMA DE LOTES (Para no ahogar a Groq)
+            # 2. SISTEMA DE LOTES (para limites de Groq)
             tamano_lote = 10 
             
             for i in range(0, len(filas_relevantes), tamano_lote):
@@ -228,7 +228,7 @@ class DocumentAnalyzer:
                         "fila": item.get("id_fila", 0)
                     })
                 
-                # 3. PAUSA TÁCTICA: Si aún quedan más lotes, esperamos 25 segundos
+                # 3. PAUSA: Si aún quedan más lotes, espero 25 segundos
                 if i + tamano_lote < len(filas_relevantes):
                     logging.info("⏱️ Enfriando el motor de Groq por 25 segundos para respetar los límites...")
                     time.sleep(25)
