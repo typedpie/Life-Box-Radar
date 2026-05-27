@@ -6,13 +6,13 @@ from urllib.parse import unquote
 from google.oauth2 import service_account
 
 # Importe de scrappers
-from src.scrapers.proforma import ProformaScraperSelenium # <-- Proforma
-from src.scrapers.otic import OticScraperSelenium # <-- Otic
-from src.scrapers.proaconcagua import ProAconcaguaScraperSelenium # <-- ProAconcagua
-from src.scrapers.agrocap import AgrocapScraperSelenium # <-- AGROCAP 
-from src.scrapers.banotic import BanoticScraperSelenium # <-- Banotic
-from src.scrapers.alianzapyme import AlianzaPymeScraperSelenium # <-- AlianzaPyme
-from src.scrapers.oticsosofa import OticSofofaScraperSelenium # <-- Otic sosofa
+from src.scrapers.proforma import ProformaScraperSelenium 
+from src.scrapers.otic import OticScraperSelenium 
+from src.scrapers.proaconcagua import ProAconcaguaScraperSelenium 
+from src.scrapers.agrocap import AgrocapScraperSelenium 
+from src.scrapers.banotic import BanoticScraperSelenium 
+from src.scrapers.alianzapyme import AlianzaPymeScraperSelenium 
+from src.scrapers.oticsosofa import OticSofofaScraperSelenium 
 from src.utils.analizador_inteligente import AnalizadorLicitaciones
 from src.utils.document_parser import DocumentAnalyzer
 from src.database.bq_client import BigQueryClient
@@ -35,14 +35,13 @@ def obtener_archivos_conocidos():
         logging.warning(f"⚠️ Aviso: No se pudo leer el historial: {e}")
         return set()
 
-# Función unificada más limpia para Discord
 def enviar_notificacion(titulo, cantidad, portal, link_especial=None):
     WEBHOOK_URL = "https://discord.com/api/webhooks/1488203280982085754/upKsOZa3nENeTyss3ijqVXtPzB3nMlnUaYWVYJg4tB1n-Y9fHqqcHcHEKSCmLb8nFUlm"
     if not WEBHOOK_URL.startswith("http"): return
 
-    if link_especial: # Si es una Alerta para Drive
+    if link_especial: 
         contenido = f"🚨 **¡NUEVA PUBLICACIÓN EN {portal.upper()}!** 🚨\nProceso: **{titulo}**\n⚠️ *Este portal usa Drive. Revisar manualmente:* {link_especial}"
-    else: # Si es una Alerta de Inyección exitosa normal
+    else: 
         contenido = f"🚨 **¡NUEVA LICITACIÓN EN {portal.upper()}!** 🚨\nProceso: **{titulo}**\n🎯 Se inyectaron **{cantidad}** oportunidades en BigQuery."
     
     try:
@@ -56,15 +55,14 @@ def orquestador():
     archivos_conocidos = obtener_archivos_conocidos()
     analizador = AnalizadorLicitaciones()
     
-    # LISTA DE PATRULLAJE (¡Con los 4 portales activos!)
     scrapers = [
         ("Proforma", ProformaScraperSelenium()),
         ("OTIC", OticScraperSelenium()),
         ("Pro Aconcagua", ProAconcaguaScraperSelenium()),
         ("Agrocap", AgrocapScraperSelenium()), 
         ("Banotic", BanoticScraperSelenium()),
-        ("Alianza Pyme", AlianzaPymeScraperSelenium())
-        ("OTIC Sosofa", OticSofofaScraperSelenium())
+        ("Alianza Pyme", AlianzaPymeScraperSelenium()),
+        ("OTIC Sofofa", OticSofofaScraperSelenium())
     ]
 
     for nombre_portal, scraper in scrapers:
@@ -78,7 +76,6 @@ def orquestador():
             logging.info(f"⏭️ No se obtuvieron datos en {nombre_portal}. Saltando al siguiente portal...")
             continue
 
-        # REGLA ESPECIAL PARA DRIVE (Como en Pro Aconcagua)
         link_drive = next((l for l in enlaces if "drive.google.com" in l), None)
         if link_drive:
             if titulo_web not in archivos_conocidos:
@@ -89,13 +86,18 @@ def orquestador():
                 print(f"✅ La carpeta de Drive de {nombre_portal} ya fue notificada. Todo al día.")
             continue
 
-        # PROCESO NORMAL PARA EXCEL
         logging.info(f"🔍 Evaluando {len(enlaces)} documentos encontrados en {nombre_portal}...")
         planes_detectados = []
+        links_pdfs = [] # <--- NUEVA LISTA PARA PDFs
+        
         for link in enlaces:
             nombre = unquote(link.split('/')[-1].split('?')[0].strip())
+            # Clasificar Excels
             if "EXCEL CLAVE" in analizador.clasificar_archivo(nombre):
                 planes_detectados.append((nombre, link))
+            # Clasificar PDFs
+            elif link.lower().endswith('.pdf') or '.pdf?' in link.lower():
+                links_pdfs.append((nombre, link))
         
         if planes_detectados:
             nombres_planes = [p[0] for p in planes_detectados]
@@ -107,6 +109,46 @@ def orquestador():
             else:
                 print(f"🎯 DOCUMENTO OBJETIVO INÉDITO EN {nombre_portal}: {nombre_ganador}")
                 lector = DocumentAnalyzer()
+                
+                # ==========================================
+                # NUEVO: EXTRACCIÓN DE FECHA DESDE EL PDF
+                # ==========================================
+                fecha_cierre = "No especificada"
+                estado_licitacion = "Activo"
+                url_pdf_fecha = None
+                
+                # Buscar un PDF prioritario (Bases, Anexos, Cronogramas)
+                for nombre_pdf, link_pdf in links_pdfs:
+                    if any(x in nombre_pdf.lower() for x in ['base', 'anexo', 'cronograma']):
+                        url_pdf_fecha = link_pdf
+                        break
+                
+                # Si no hay uno prioritario, tomamos el primer PDF que encontremos
+                if not url_pdf_fecha and links_pdfs:
+                    url_pdf_fecha = links_pdfs[0][1]
+                    
+                if url_pdf_fecha:
+                    print(f"📄 Descargando PDF para extraer fecha: {unquote(url_pdf_fecha.split('/')[-1])}")
+                    ruta_pdf = lector.descargar_archivo(url_pdf_fecha)
+                    if ruta_pdf:
+                        fecha_cierre = lector.extraer_fecha_pdf(ruta_pdf)
+                        os.remove(ruta_pdf) 
+                        
+                        # LOGICA DE VENCIMIENTO
+                        if fecha_cierre != "No especificada":
+                            try:
+                                fecha_limite_dt = pd.to_datetime(fecha_cierre, format='%Y-%m-%d')
+                                fecha_hoy_dt = pd.Timestamp.now('America/Santiago').normalize().tz_localize(None)
+                                
+                                if fecha_limite_dt < fecha_hoy_dt:
+                                    estado_licitacion = "Vencido"
+                                    print(f"⚠️ LICITACIÓN EXPIRADA: La fecha de cierre ({fecha_cierre}) ya pasó.")
+                                else:
+                                    print(f"✅ LICITACIÓN VIGENTE: Cierra el {fecha_cierre}.")
+                            except Exception as e:
+                                logging.warning(f"No se pudo calcular el vencimiento para la fecha: {fecha_cierre}")
+                # ==========================================
+
                 ruta = lector.descargar_archivo(url_ganador)
                 
                 if ruta:
@@ -118,6 +160,8 @@ def orquestador():
                         df['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
                         df['origen_web'] = nombre_portal
                         df['titulo_llamado_web'] = titulo_web
+                        df['fecha_cierre'] = fecha_cierre      # <--- Inyectamos la fecha
+                        df['estado'] = estado_licitacion       # <--- Inyectamos si está Activo o Vencido
                         
                         cliente = BigQueryClient("proyecto-life-box-licitaciones", "licitaciones", "oportunidades", "credenciales_gcp.json")
                         if cliente.inyectar_datos(df):
