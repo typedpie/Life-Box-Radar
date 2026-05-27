@@ -11,14 +11,13 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class DocumentAnalyzer:
     def __init__(self):
-        # Lee la llave secreta desde GitHub Actions de forma segura
         self.api_key = os.environ.get("GROQ_API_KEY")
         self.client = Groq(api_key=self.api_key) if self.api_key else None
         
-        # 🎯 ESTRATEGIA DE DOS MOTORES 
-        # 1. Motor PDF: Rápido y con alto límite de tokens
+        # 🎯 ESTRATEGIA DE DOS MOTORES
+        # 1. Motor PDF: Rápido, ideal para textos largos y con límite de 20.000 TPM
         self.modelo_ia_pdf = "llama-3.1-8b-instant" 
-        # 2. Motor Excel: Robusto y analítico (pero con bajo límite de tokens)
+        # 2. Motor Excel: Robusto y analítico, límite bajo de 6.000 TPM
         self.modelo_ia_excel = "llama-3.3-70b-versatile" 
         
         self.temp_dir = "temp_docs"
@@ -48,10 +47,9 @@ class DocumentAnalyzer:
             return None
 
     # ==========================================
-    # FUNCIÓN: FECHAS (PDF) - USA EL MOTOR 8B
+    # FUNCIÓN: FECHAS (PDF) - Usa Motor 8B
     # ==========================================
     def extraer_fecha_pdf(self, ruta_pdf):
-        """Abre un PDF, lee sus primeras páginas y le pide a Groq que encuentre la fecha de cierre."""
         if not self.client:
             return "No especificada"
             
@@ -61,7 +59,6 @@ class DocumentAnalyzer:
             texto_pdf = ""
             with open(ruta_pdf, 'rb') as file:
                 lector = PyPDF2.PdfReader(file)
-                # Lee solo las primeras 5 pag para no saturar a groq
                 paginas_a_leer = min(5, len(lector.pages))
                 for i in range(paginas_a_leer):
                     texto_extraido = lector.pages[i].extract_text()
@@ -101,12 +98,13 @@ class DocumentAnalyzer:
             return "No especificada"
 
     # ==========================================
-    # LAS FUNCIONES DEL EXCEL - USA EL MOTOR 70B
+    # LAS FUNCIONES DEL EXCEL - Usa Motor 70B
     # ==========================================
     def extraer_lote_con_ia(self, lote_filas):
+        # texto compacto para ahorrar tokens
         texto_batch = ""
         for f in lote_filas:
-            texto_batch += f"ID_FILA: {f['id']} | PALABRA_CLAVE: {f['palabra_clave']} | DATOS: {f['texto']}\n"
+            texto_batch += f"ID:{f['id']}|KW:{f['palabra_clave']}|TXT:{f['texto']}\n"
 
         max_reintentos = 3
         json_estructurado = []
@@ -133,20 +131,19 @@ class DocumentAnalyzer:
         """
         
         for intento in range(max_reintentos):
-            txt_1 = "[]" # 🛡️ Escudo de variable
+            txt_1 = "[]" 
             try:
                 res_1 = self.client.chat.completions.create(
                     messages=[
                         {"role": "system", "content": prompt_sistema_1},
                         {"role": "user", "content": prompt_usuario_1}
                     ],
-                    model=self.modelo_ia_excel, # <--- MOTOR EXCEL
+                    model=self.modelo_ia_excel, # <--- MOTOR EXCEL (70B)
                     temperature=0.0,
                     max_tokens=1500 
                 )
                 txt_1 = res_1.choices[0].message.content.strip()
                 
-                # Limpieza robusta de Markdown
                 md_ticks = chr(96) * 3
                 md_json = md_ticks + "json"
                 
@@ -170,8 +167,8 @@ class DocumentAnalyzer:
             except Exception as e:
                 error_str = str(e)
                 if '429' in error_str:
-                    espera = 60 # 🛡️ EMERGENCIA: Reset total de tokens (1 min)
-                    logging.warning(f"Límite en Groq (Fase 1)... reseteando tokens por {espera}s (Intento {intento + 1}/{max_reintentos})")
+                    espera = 120 # 🛡️En caso de #429 2 min de espera.
+                    logging.warning(f"Límite 429 en Groq (Fase 1)... reseteo profundo de {espera}s (Intento {intento + 1}/{max_reintentos})")
                     time.sleep(espera)
                 elif '413' in error_str:
                     espera = 15
@@ -207,7 +204,7 @@ class DocumentAnalyzer:
                         {"role": "system", "content": prompt_sistema_2},
                         {"role": "user", "content": prompt_usuario_2}
                     ],
-                    model=self.modelo_ia_excel, # <--- MOTOR EXCEL
+                    model=self.modelo_ia_excel, # <--- MOTOR EXCEL (70B)
                     temperature=0.0,
                     max_tokens=1500 
                 )
@@ -235,8 +232,8 @@ class DocumentAnalyzer:
             except Exception as e:
                 error_str = str(e)
                 if '429' in error_str:
-                    espera = 60 # 🛡️ EMERGENCIA: Reset total
-                    logging.warning(f"Límite en Groq (Fase 2)... reseteando tokens por {espera}s (Intento {intento + 1}/{max_reintentos})")
+                    espera = 120 # 🛡️ En caso de #429 2 min de espera
+                    logging.warning(f"Límite 429 en Groq (Fase 2)... reseteo profundo de {espera}s (Intento {intento + 1}/{max_reintentos})")
                     time.sleep(espera)
                 elif '413' in error_str:
                     espera = 15
@@ -287,8 +284,8 @@ class DocumentAnalyzer:
                 
             logging.info(f"Se encontraron {len(filas_relevantes)} filas clave. Iniciando procesamiento por lotes...")
             
-            # 🎯 EL SECRETO PARA EL 70B: Lotes de 5 filas para no agotar sus 6,000 tokens
-            tamano_lote = 5 
+            # 🎯 LOTES PEQUEÑOS.
+            tamano_lote = 3 
             
             for i in range(0, len(filas_relevantes), tamano_lote):
                 lote = filas_relevantes[i:i + tamano_lote]
@@ -309,8 +306,8 @@ class DocumentAnalyzer:
                     })
                 
                 if i + tamano_lote < len(filas_relevantes):
-                    logging.info("⏱️ Enfriando el motor pesado de Groq por 30 segundos...")
-                    time.sleep(30) # 🛡️ Pausa natural para que el 70B se recupere.
+                    logging.info("⏱️ Enfriando el motor pesado de Groq por 45 segundos...")
+                    time.sleep(45) # 🛡️ 45 segundos entre lotes de 3.
                     
             return resultados_finales
             
