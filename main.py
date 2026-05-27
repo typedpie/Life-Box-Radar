@@ -117,38 +117,30 @@ def orquestador():
                 estado_licitacion = "Activo"
                 url_pdf_fecha = None
                 
-                # Buscar un PDF prioritario (Bases, Anexos, Cronogramas)
+                # 1. Búsqueda de ALTA PRIORIDAD (El Cronograma o el Anexo 1)
                 for nombre_pdf, link_pdf in links_pdfs:
-                    if any(x in nombre_pdf.lower() for x in ['base', 'anexo', 'cronograma']):
+                    nom_bajo = nombre_pdf.lower()
+                    if any(x in nom_bajo for x in ['cronograma', 'anexo 1', 'anexo-1', 'anexo1', 'anexo n°1', 'calendario']):
                         url_pdf_fecha = link_pdf
                         break
                 
-                # Si no hay uno prioritario, tomamos el primer PDF que encontremos
+                # 2. Búsqueda de MEDIA PRIORIDAD (Bases o Anexos genéricos)
+                if not url_pdf_fecha:
+                    for nombre_pdf, link_pdf in links_pdfs:
+                        nom_bajo = nombre_pdf.lower()
+                        if any(x in nom_bajo for x in ['base', 'anexo']):
+                            # FILTRO ANTI-BASURA LEGAL: Ignorar resoluciones o modificaciones
+                            if not any(basura in nom_bajo for basura in ['modifica', 'r.e.', 'resolucion', 'ord', 'ordinario']):
+                                url_pdf_fecha = link_pdf
+                                break
+                
+                # 3. Fallback: Si no hay nada, tomamos el primero
                 if not url_pdf_fecha and links_pdfs:
                     url_pdf_fecha = links_pdfs[0][1]
                     
                 if url_pdf_fecha:
                     print(f"📄 Descargando PDF para extraer fecha: {unquote(url_pdf_fecha.split('/')[-1])}")
-                    ruta_pdf = lector.descargar_archivo(url_pdf_fecha)
-                    if ruta_pdf:
-                        fecha_cierre = lector.extraer_fecha_pdf(ruta_pdf)
-                        os.remove(ruta_pdf) 
-                        
-                        # LOGICA DE VENCIMIENTO
-                        if fecha_cierre != "No especificada":
-                            try:
-                                fecha_limite_dt = pd.to_datetime(fecha_cierre, format='%Y-%m-%d')
-                                fecha_hoy_dt = pd.Timestamp.now('America/Santiago').normalize().tz_localize(None)
-                                
-                                if fecha_limite_dt < fecha_hoy_dt:
-                                    estado_licitacion = "Vencido"
-                                    print(f"⚠️ LICITACIÓN EXPIRADA: La fecha de cierre ({fecha_cierre}) ya pasó.")
-                                else:
-                                    print(f"✅ LICITACIÓN VIGENTE: Cierra el {fecha_cierre}.")
-                            except Exception as e:
-                                logging.warning(f"No se pudo calcular el vencimiento para la fecha: {fecha_cierre}")
-                # ==========================================
-
+                    
                 ruta = lector.descargar_archivo(url_ganador)
                 
                 if ruta:
