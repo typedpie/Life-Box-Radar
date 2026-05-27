@@ -150,7 +150,7 @@ class DocumentAnalyzer:
                 break
             except Exception as e:
                 if '429' in str(e) or '413' in str(e):
-                    espera = 15
+                    espera = 35 # <--- AUMENTADO A 35 SEGUNDOS
                     logging.warning(f"Límite en Groq (Fase 1)... pausando {espera}s (Intento {intento + 1}/{max_reintentos})")
                     time.sleep(espera)
                 else:
@@ -200,7 +200,7 @@ class DocumentAnalyzer:
                 
             except Exception as e:
                 if '429' in str(e) or '413' in str(e):
-                    espera = 15
+                    espera = 35 # <--- AUMENTADO A 35 SEGUNDOS
                     logging.warning(f"Límite en Groq (Fase 2)... pausando {espera}s (Intento {intento + 1}/{max_reintentos})")
                     time.sleep(espera)
                 else:
@@ -269,8 +269,8 @@ class DocumentAnalyzer:
                     })
                 
                 if i + tamano_lote < len(filas_relevantes):
-                    logging.info("⏱️ Enfriando el motor de Groq por 25 segundos para respetar los límites...")
-                    time.sleep(25)
+                    logging.info("⏱️ Enfriando el motor de Groq por 45 segundos para respetar los límites...")
+                    time.sleep(45) # <--- AUMENTADO A 45 SEGUNDOS
                     
             return resultados_finales
             
