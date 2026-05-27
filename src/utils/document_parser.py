@@ -16,7 +16,7 @@ class DocumentAnalyzer:
         self.client = Groq(api_key=self.api_key) if self.api_key else None
         
         # Modelo Llama 3 de 70 billones de parámetros 
-        self.modelo_ia = "llama3-8b-8192" 
+        self.modelo_ia = "llama-3.1-8b-instant" 
         
         self.temp_dir = "temp_docs"
         if not os.path.exists(self.temp_dir):
