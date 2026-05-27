@@ -20,7 +20,7 @@ jobs:
           python-version: '3.10'
 
       - name: Instalar librerias
-        run: pip install selenium groq pandas google-cloud-bigquery webdriver-manager openpyxl pandas-gbq beautifulsoup4 requests
+        run: pip install selenium groq pandas google-cloud-bigquery webdriver-manager openpyxl pandas-gbq beautifulsoup4 requests PyPDF2
 
       - name: Crear llave maestra de Google
         run: echo '${{ secrets.GCP_CREDENTIALS }}' > credenciales_gcp.json
