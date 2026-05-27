@@ -15,8 +15,11 @@ class DocumentAnalyzer:
         self.api_key = os.environ.get("GROQ_API_KEY")
         self.client = Groq(api_key=self.api_key) if self.api_key else None
         
-        # 🎯 NUEVO MODELO: Versión 3.1 (Actualizado, rápido y con alto límite)
-        self.modelo_ia = "llama-3.1-8b-instant" 
+        # 🎯 ESTRATEGIA DE DOS MOTORES (Sugerencia de Tomás)
+        # 1. Motor ligero para leer el PDF (Límites separados)
+        self.modelo_ia_pdf = "llama-3.1-8b-instant" 
+        # 2. Motor pesado para el Excel (Vuelve al original que funcionaba)
+        self.modelo_ia_excel = "llama-3.3-70b-versatile" 
         
         self.temp_dir = "temp_docs"
         if not os.path.exists(self.temp_dir):
@@ -45,7 +48,7 @@ class DocumentAnalyzer:
             return None
 
     # ==========================================
-    # FUNCIÓN: FECHAS (PDF)
+    # FUNCIÓN: FECHAS (PDF) - Usa motor 1
     # ==========================================
     def extraer_fecha_pdf(self, ruta_pdf):
         """Abre un PDF, lee sus primeras páginas y le pide a Groq que encuentre la fecha de cierre."""
@@ -58,7 +61,7 @@ class DocumentAnalyzer:
             texto_pdf = ""
             with open(ruta_pdf, 'rb') as file:
                 lector = PyPDF2.PdfReader(file)
-                # Lee solo las primeras 5 pag para no saturar a groq
+                # Lee solo las primeras 5 pag para no saturar
                 paginas_a_leer = min(5, len(lector.pages))
                 for i in range(paginas_a_leer):
                     texto_extraido = lector.pages[i].extract_text()
@@ -84,9 +87,9 @@ class DocumentAnalyzer:
                     {"role": "system", "content": prompt_sistema},
                     {"role": "user", "content": prompt_usuario}
                 ],
-                model=self.modelo_ia,
-                temperature=0.0, 
-                max_tokens=20 # <-- CORREA DE MEMORIA: Solo le dejamos usar 20 tokens, evita que hable de más y ahorra payload.
+                model=self.modelo_ia_pdf, # <--- MOTOR PDF
+                temperature=0.0,
+                max_tokens=50 # Solo lo justo para una fecha
             )
             
             fecha_encontrada = respuesta.choices[0].message.content.strip()
@@ -98,7 +101,7 @@ class DocumentAnalyzer:
             return "No especificada"
 
     # ==========================================
-    # LAS FUNCIONES DEL EXCEL
+    # LAS FUNCIONES DEL EXCEL - Usa motor 2
     # ==========================================
     def extraer_lote_con_ia(self, lote_filas):
         texto_batch = ""
@@ -136,13 +139,12 @@ class DocumentAnalyzer:
                         {"role": "system", "content": prompt_sistema_1},
                         {"role": "user", "content": prompt_usuario_1}
                     ],
-                    model=self.modelo_ia,
-                    temperature=0.0,
-                    max_tokens=1500 # <-- CORREA DE MEMORIA: Soluciona el error 413 Payload Too Large
+                    model=self.modelo_ia_excel, # <--- MOTOR EXCEL ORIGINAL
+                    temperature=0.0
                 )
                 txt_1 = res_1.choices[0].message.content.strip()
                 
-                # Limpieza robusta de Markdown evitando caracteres conflictivos
+                # Limpieza de Markdown
                 md_ticks = chr(96) * 3
                 md_json = md_ticks + "json"
                 
@@ -158,7 +160,6 @@ class DocumentAnalyzer:
                 else:
                     txt_1 = "[]"
                 
-                # Si el texto está vacío, forzamos un error para que reintente
                 if not txt_1 or txt_1 == "[]":
                     raise ValueError("JSON vacío devuelto por la IA")
 
@@ -166,12 +167,12 @@ class DocumentAnalyzer:
                 break
             except Exception as e:
                 if '429' in str(e) or '413' in str(e):
-                    espera = 20 
+                    espera = 25 
                     logging.warning(f"Límite en Groq (Fase 1)... pausando {espera}s (Intento {intento + 1}/{max_reintentos})")
                     time.sleep(espera)
                 else:
                     logging.warning(f"Error parseando JSON en Fase 1, reintentando...: {e}")
-                    time.sleep(5) # Ya NO se rinde, reintenta
+                    time.sleep(5)
         
         if not json_estructurado:
             return []
@@ -198,9 +199,8 @@ class DocumentAnalyzer:
                         {"role": "system", "content": prompt_sistema_2},
                         {"role": "user", "content": prompt_usuario_2}
                     ],
-                    model=self.modelo_ia,
-                    temperature=0.0,
-                    max_tokens=1500 # <-- CORREA DE MEMORIA
+                    model=self.modelo_ia_excel, # <--- MOTOR EXCEL ORIGINAL
+                    temperature=0.0
                 )
                 txt_2 = res_2.choices[0].message.content.strip()
                 
@@ -225,7 +225,7 @@ class DocumentAnalyzer:
                 
             except Exception as e:
                 if '429' in str(e) or '413' in str(e):
-                    espera = 20 
+                    espera = 25 
                     logging.warning(f"Límite en Groq (Fase 2)... pausando {espera}s (Intento {intento + 1}/{max_reintentos})")
                     time.sleep(espera)
                 else:
@@ -294,8 +294,8 @@ class DocumentAnalyzer:
                     })
                 
                 if i + tamano_lote < len(filas_relevantes):
-                    logging.info("⏱️ Enfriando el motor de Groq por 15 segundos para respetar los límites...")
-                    time.sleep(15) 
+                    logging.info("⏱️ Enfriando el motor de Groq por 25 segundos para respetar los límites...")
+                    time.sleep(25) 
                     
             return resultados_finales
             
