@@ -153,7 +153,7 @@ class DocumentAnalyzer:
                 break # Éxito, rompo el bucle
             except Exception as e:
                 if '429' in str(e) or '413' in str(e):
-                    espera = 15
+                    espera = 60 # <-- MÁS PACIENCIA: Aumentado a 60s si falla, para garantizar el reseteo
                     logging.warning(f"Límite en Groq (Fase 1)... pausando {espera}s (Intento {intento + 1}/{max_reintentos})")
                     time.sleep(espera)
                 else:
@@ -207,7 +207,7 @@ class DocumentAnalyzer:
                 
             except Exception as e:
                 if '429' in str(e) or '413' in str(e):
-                    espera = 15
+                    espera = 60 # <-- MÁS PACIENCIA
                     logging.warning(f"Límite en Groq (Fase 2)... pausando {espera}s (Intento {intento + 1}/{max_reintentos})")
                     time.sleep(espera)
                 else:
@@ -261,8 +261,8 @@ class DocumentAnalyzer:
                 
             logging.info(f"Se encontraron {len(filas_relevantes)} filas clave. Iniciando procesamiento por lotes...")
             
-            # 2. SISTEMA DE LOTES (para limites de Groq)
-            tamano_lote = 10 
+            # 2. SISTEMA DE LOTES (Ajustado para no quemar tokens del modelo 70b)
+            tamano_lote = 5 # <--- CAMBIO CRÍTICO: Bajado a 5 filas por lote para no romper la API.
             
             for i in range(0, len(filas_relevantes), tamano_lote):
                 lote = filas_relevantes[i:i + tamano_lote]
@@ -282,10 +282,10 @@ class DocumentAnalyzer:
                         "fila": item.get("id_fila", 0)
                     })
                 
-                # 3. PAUSA: Si aún quedan más lotes, espero 25 segundos
+                # 3. PAUSA TÁCTICA: Modificada para no chocar con el límite de Groq
                 if i + tamano_lote < len(filas_relevantes):
-                    logging.info("⏱️ Enfriando el motor de Groq por 25 segundos para respetar los límites...")
-                    time.sleep(25)
+                    logging.info("⏱️ Enfriando el motor de Groq por 45 segundos para respetar los límites...")
+                    time.sleep(45) # <--- CAMBIO CRÍTICO: Pausa más larga
                     
             return resultados_finales
             
