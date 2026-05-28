@@ -4,7 +4,7 @@ import pandas as pd
 import logging
 import json
 import time
-import PyPDF2 # <-- Necesario para la función de las fechas
+import PyPDF2 
 from groq import Groq
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -15,7 +15,7 @@ class DocumentAnalyzer:
         self.api_key = os.environ.get("GROQ_API_KEY")
         self.client = Groq(api_key=self.api_key) if self.api_key else None
         
-        # Modelo Llama 3 de 70 billones de parámetros (EXACTAMENTE COMO LO TENÍAS)
+        # Modelo Llama 3 de 70 billones de parámetros
         self.modelo_ia = "llama-3.3-70b-versatile" 
         
         self.temp_dir = "temp_docs"
@@ -45,7 +45,7 @@ class DocumentAnalyzer:
             return None
 
     # ==========================================
-    # LA ÚNICA FUNCIÓN NUEVA: EXTRACCIÓN DE FECHA
+    # FUNCIÓN: EXTRACCIÓN DE FECHA
     # ==========================================
     def extraer_fecha_pdf(self, ruta_pdf):
         if not self.client:
@@ -94,9 +94,7 @@ class DocumentAnalyzer:
             logging.error(f"Error extrayendo fecha del PDF {ruta_pdf}: {e}")
             return "No especificada"
 
-    # ==========================================
-    # TU CÓDIGO ORIGINAL INTACTO HACIA ABAJO
-    # ==========================================
+    
     def extraer_lote_con_ia(self, lote_filas):
         texto_batch = ""
         for f in lote_filas:
@@ -228,7 +226,7 @@ class DocumentAnalyzer:
         try:
             df = pd.read_excel(ruta_excel, header=None)
             
-            # --- NUEVO PRE-FILTRO ESTRICTO ---
+            # --- PRE-FILTRO ESTRICTO ---
             for index, fila in df.iterrows():
                 textos_cortos_validos = []
                 texto_fila_completa = [] # Guardo toda la info para la IA
@@ -262,7 +260,7 @@ class DocumentAnalyzer:
             logging.info(f"Se encontraron {len(filas_relevantes)} filas clave. Iniciando procesamiento por lotes...")
             
             # 2. SISTEMA DE LOTES (Ajustado para no quemar tokens del modelo 70b)
-            tamano_lote = 5 # <--- CAMBIO CRÍTICO: Bajado a 5 filas por lote para no romper la API.
+            tamano_lote = 5 # <--- Bajado a 5 filas por lote para no romper la API.
             
             for i in range(0, len(filas_relevantes), tamano_lote):
                 lote = filas_relevantes[i:i + tamano_lote]
@@ -282,10 +280,10 @@ class DocumentAnalyzer:
                         "fila": item.get("id_fila", 0)
                     })
                 
-                # 3. PAUSA TÁCTICA: Modificada para no chocar con el límite de Groq
+                # 3. PAUSA: Modificada para no chocar con el límite de Groq
                 if i + tamano_lote < len(filas_relevantes):
                     logging.info("⏱️ Enfriando el motor de Groq por 45 segundos para respetar los límites...")
-                    time.sleep(45) # <--- CAMBIO CRÍTICO: Pausa más larga
+                    time.sleep(45) # <---  Pausa más larga
                     
             return resultados_finales
             

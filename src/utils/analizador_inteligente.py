@@ -98,7 +98,9 @@ class AnalizadorLicitaciones:
     def clasificar_archivo(self, nombre_archivo):
         """Asigna una categoría al archivo basándose en su nombre."""
         nombre = nombre_archivo.lower()
-        if "plan" in nombre and "capacitacion" in nombre:
+        
+        # 🎯 Posibles nombres para la parrila de cursos 
+        if ("plan" in nombre and "capacitacion" in nombre) or "parrilla" in nombre or "nomina" in nombre or "nómina" in nombre:
             return "Plan de Cursos (EXCEL CLAVE)"
         elif "acta" in nombre:
             return "Acta Administrativa (Ignorar)"
@@ -169,8 +171,7 @@ if __name__ == "__main__":
     archivos_encontrados = [
         "Acta-Apertura-Propuestas-1ra-licitacion-2026.pdf",
         "PLAN-DE-CAPACITACION-6TA-ANO-2025-con-correcciones.xlsx",
-        "PLAN-DE-CAPACITACION-6TA-ANO-2025-con-correcciones-al-12-02-2026.xlsx",
-        "PLAN-DE-CAPACITACION-PROFORMA-14-01-2026.xlsx",
+        "Parrilla-de-cursos-6to-llamado.xlsx", # <--- prueba para Sofofa
         "Preguntas-y-Respuestas-6-Licitacion-2025.xlsx"
     ]
     

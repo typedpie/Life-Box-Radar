@@ -70,7 +70,7 @@ credenciales = service_account.Credentials.from_service_account_file(RUTA_CREDEN
 @st.cache_data(ttl=300) 
 def cargar_oportunidades_bq():
     try:
-        # --- 🤖 NUEVO: PILOTO AUTOMÁTICO DE VENCIMIENTOS ---
+        # --- vencimientos ---
         # Este bloque revisa si hay licitaciones cuya fecha ya pasó y las marca como 'Vencido' automáticamente en la base de datos.
         cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
         query_vencidos = f"""
@@ -82,7 +82,7 @@ def cargar_oportunidades_bq():
         cliente_bq.query(query_vencidos).result() # Ejecuta el update silenciosamente
         # ---------------------------------------------------
 
-        # Traemos solo lo que sigue Activo
+        # se ve solo lo que tiene estado "activo"
         query_select = f"""
             SELECT fecha_deteccion, titulo_llamado_web, origen_web, palabra_clave, curso, region, comuna, modalidad, cupos, horas, link_documento
             FROM `{ID_PROYECTO}.licitaciones.oportunidades`

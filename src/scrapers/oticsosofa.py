@@ -22,7 +22,7 @@ class OticSofofaScraperSelenium:
 
     def fetch_tender_links(self):
         
-        # 🎯 Calculamos ambos años para el Plan B
+        # 🎯 ambos años
         anio_actual = str(datetime.now().year) 
         anio_anterior = str(datetime.now().year - 1)
         
@@ -38,7 +38,7 @@ class OticSofofaScraperSelenium:
 
             logging.info(f"Buscando llamados del {anio_actual} (Plan B: {anio_anterior})...")
 
-            # SCRIPT ADAPTADO CON "PLAN B"
+            # script con la fase 2 por si la 2 falla"
             script_js = """
                 const anioActual = arguments[0];
                 const anioAnterior = arguments[1];
@@ -115,7 +115,7 @@ class OticSofofaScraperSelenium:
                 nombre_llamado = resultado_js["llamado"]
                 anio_detectado = resultado_js["anio_detectado"] # Recibimos si usó 2026 o 2025
                 
-                # Actualizamos el título usando el año real que detectó
+                # Actualizo el titulo con el año donde s encontro 
                 titulo_encontrado = f"OTIC Sofofa - {nombre_llamado} ({anio_detectado})"
                 logging.info(f"🎯 ¡Blanco fijado en {anio_detectado}! Extrayendo documentos de: {nombre_llamado}")
 

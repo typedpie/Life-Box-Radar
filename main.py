@@ -159,12 +159,12 @@ def orquestador():
                 # ==========================================
 
                 # ==========================================
-                # DECISIÓN INTELIGENTE: ¿LEEMOS EL EXCEL?
+                # DECISIÓN: ¿LEEMOS EL EXCEL?
                 # ==========================================
                 if estado_licitacion == "Vencido":
                     print(f"⏭️ AHORRO DE TOKENS: La licitación está vencida. Se descarta la lectura de cursos del Excel de {nombre_portal}.")
                     
-                    # 💡 TRUCO MAESTRO: Subimos UNA sola fila "fantasma" a BigQuery para que el bot la recuerde mañana
+                    #Subo UNA sola fila "fantasma" a BigQuery para que el bot la recuerde mañana
                     df_vencida = pd.DataFrame([{
                         "palabra_clave": "N/A", "curso": "Licitación Vencida (Ignorada para ahorrar proceso)", 
                         "region": "N/A", "comuna": "N/A", "cupos": "0", "horas": "0", "modalidad": "N/A", "fila": 0
@@ -182,7 +182,7 @@ def orquestador():
                     
                 else:
                     # ==========================================
-                    # LA LICITACIÓN ESTÁ VIGENTE, APLICAMOS LA IA AL EXCEL
+                    # LA LICITACIÓN ESTÁ VIGENTE, APLICOO LA IA AL EXCEL
                     # ==========================================
                     ruta = lector.descargar_archivo(url_ganador)
                     
