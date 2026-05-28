@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   workflow_dispatch:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '0 12,22 * * *'
 
 jobs:
   ejecutar-bot:
