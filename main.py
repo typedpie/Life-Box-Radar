@@ -117,24 +117,23 @@ def orquestador():
                 estado_licitacion = "Activo"
                 url_pdf_fecha = None
                 
-                # 1. Búsqueda de ALTA PRIORIDAD (El Cronograma o el Anexo 1)
+                # 1. Búsqueda de ALTA PRIORIDAD
                 for nombre_pdf, link_pdf in links_pdfs:
                     nom_bajo = nombre_pdf.lower()
                     if any(x in nom_bajo for x in ['cronograma', 'anexo 1', 'anexo-1', 'anexo1', 'anexo n°1', 'calendario']):
                         url_pdf_fecha = link_pdf
                         break
                 
-                # 2. Búsqueda de MEDIA PRIORIDAD (Bases o Anexos genéricos)
+                # 2. Búsqueda de MEDIA PRIORIDAD
                 if not url_pdf_fecha:
                     for nombre_pdf, link_pdf in links_pdfs:
                         nom_bajo = nombre_pdf.lower()
                         if any(x in nom_bajo for x in ['base', 'anexo']):
-                            # FILTRO ANTI-BASURA LEGAL: Ignorar resoluciones o modificaciones
                             if not any(basura in nom_bajo for basura in ['modifica', 'r.e.', 'resolucion', 'ord', 'ordinario']):
                                 url_pdf_fecha = link_pdf
                                 break
                 
-                # 3. Fallback: Si no hay nada, tomamos el primero
+                # 3. Fallback
                 if not url_pdf_fecha and links_pdfs:
                     url_pdf_fecha = links_pdfs[0][1]
                     
@@ -145,7 +144,6 @@ def orquestador():
                         fecha_cierre = lector.extraer_fecha_pdf(ruta_pdf)
                         os.remove(ruta_pdf) 
                         
-                        # LOGICA DE VENCIMIENTO
                         if fecha_cierre != "No especificada":
                             try:
                                 fecha_limite_dt = pd.to_datetime(fecha_cierre, format='%Y-%m-%d')
@@ -161,28 +159,51 @@ def orquestador():
                 # ==========================================
 
                 # ==========================================
-                # EXTRACCIÓN DE CURSOS DEL EXCEL
+                # DECISIÓN INTELIGENTE: ¿LEEMOS EL EXCEL?
                 # ==========================================
-                ruta = lector.descargar_archivo(url_ganador)
-                
-                if ruta:
-                    hallazgos = lector.analizar_excel(ruta, analizador.keywords_negocio)
-                    if hallazgos:
-                        print(f"\n🚨 ¡ALERTA! Se encontraron {len(hallazgos)} oportunidades. Preparando inyección...")
-                        df = pd.DataFrame(hallazgos)
-                        df['link_documento'] = url_ganador.split('?')[0]
-                        df['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
-                        df['origen_web'] = nombre_portal
-                        df['titulo_llamado_web'] = titulo_web
-                        df['fecha_cierre'] = fecha_cierre      # <--- Inyectamos la fecha
-                        df['estado'] = estado_licitacion       # <--- Inyectamos si está Activo o Vencido
-                        
-                        cliente = BigQueryClient("proyecto-life-box-licitaciones", "licitaciones", "oportunidades", "credenciales_gcp.json")
-                        if cliente.inyectar_datos(df):
-                            enviar_notificacion(titulo_web, len(hallazgos), nombre_portal)
-                            archivos_conocidos.add(nombre_ganador)
-                    else:
-                        print(f"\nℹ️ El Excel de {nombre_portal} no contiene cursos clave.")
+                if estado_licitacion == "Vencido":
+                    print(f"⏭️ AHORRO DE TOKENS: La licitación está vencida. Se descarta la lectura de cursos del Excel de {nombre_portal}.")
+                    
+                    # 💡 TRUCO MAESTRO: Subimos UNA sola fila "fantasma" a BigQuery para que el bot la recuerde mañana
+                    df_vencida = pd.DataFrame([{
+                        "palabra_clave": "N/A", "curso": "Licitación Vencida (Ignorada para ahorrar proceso)", 
+                        "region": "N/A", "comuna": "N/A", "cupos": "0", "horas": "0", "modalidad": "N/A", "fila": 0
+                    }])
+                    df_vencida['link_documento'] = url_ganador.split('?')[0]
+                    df_vencida['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
+                    df_vencida['origen_web'] = nombre_portal
+                    df_vencida['titulo_llamado_web'] = titulo_web
+                    df_vencida['fecha_cierre'] = fecha_cierre
+                    df_vencida['estado'] = "Vencido"
+
+                    cliente = BigQueryClient("proyecto-life-box-licitaciones", "licitaciones", "oportunidades", "credenciales_gcp.json")
+                    cliente.inyectar_datos(df_vencida)
+                    archivos_conocidos.add(nombre_ganador)
+                    
+                else:
+                    # ==========================================
+                    # LA LICITACIÓN ESTÁ VIGENTE, APLICAMOS LA IA AL EXCEL
+                    # ==========================================
+                    ruta = lector.descargar_archivo(url_ganador)
+                    
+                    if ruta:
+                        hallazgos = lector.analizar_excel(ruta, analizador.keywords_negocio)
+                        if hallazgos:
+                            print(f"\n🚨 ¡ALERTA! Se encontraron {len(hallazgos)} oportunidades vigentes. Preparando inyección...")
+                            df = pd.DataFrame(hallazgos)
+                            df['link_documento'] = url_ganador.split('?')[0]
+                            df['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
+                            df['origen_web'] = nombre_portal
+                            df['titulo_llamado_web'] = titulo_web
+                            df['fecha_cierre'] = fecha_cierre      
+                            df['estado'] = estado_licitacion       
+                            
+                            cliente = BigQueryClient("proyecto-life-box-licitaciones", "licitaciones", "oportunidades", "credenciales_gcp.json")
+                            if cliente.inyectar_datos(df):
+                                enviar_notificacion(titulo_web, len(hallazgos), nombre_portal)
+                                archivos_conocidos.add(nombre_ganador)
+                        else:
+                            print(f"\nℹ️ El Excel de {nombre_portal} no contiene cursos clave.")
         else:
             print(f"\nℹ️ No se detectó ningún Plan de Capacitación (Excel) en {nombre_portal}.")
 
