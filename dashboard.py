@@ -66,17 +66,30 @@ if not os.path.exists(RUTA_CREDENCIALES):
 
 credenciales = service_account.Credentials.from_service_account_file(RUTA_CREDENCIALES)
 
-# 4. EXTRACCIÓN DE DATOS DESDE BIGQUERY
+# 4. EXTRACCIÓN Y LIMPIEZA DE DATOS DESDE BIGQUERY
 @st.cache_data(ttl=300) 
 def cargar_oportunidades_bq():
     try:
-        query = f"""
+        # --- 🤖 NUEVO: PILOTO AUTOMÁTICO DE VENCIMIENTOS ---
+        # Este bloque revisa si hay licitaciones cuya fecha ya pasó y las marca como 'Vencido' automáticamente en la base de datos.
+        cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
+        query_vencidos = f"""
+            UPDATE `{ID_PROYECTO}.licitaciones.oportunidades`
+            SET estado = 'Vencido'
+            WHERE (estado = 'Activo' OR estado IS NULL) 
+            AND SAFE_CAST(fecha_cierre AS DATE) < CURRENT_DATE('America/Santiago')
+        """
+        cliente_bq.query(query_vencidos).result() # Ejecuta el update silenciosamente
+        # ---------------------------------------------------
+
+        # Traemos solo lo que sigue Activo
+        query_select = f"""
             SELECT fecha_deteccion, titulo_llamado_web, origen_web, palabra_clave, curso, region, comuna, modalidad, cupos, horas, link_documento
             FROM `{ID_PROYECTO}.licitaciones.oportunidades`
             WHERE estado = 'Activo' OR estado IS NULL
             ORDER BY fecha_deteccion DESC
         """
-        df = pd.read_gbq(query, project_id=ID_PROYECTO, credentials=credenciales)
+        df = pd.read_gbq(query_select, project_id=ID_PROYECTO, credentials=credenciales)
         
         if not df.empty:
             df.columns = ['Detectado el', 'Llamado', 'OTIC', 'Gatillo', 'Curso', 'Región', 'Comuna', 'Modalidad', 'Alumnos', 'Horas', 'Link Excel']
@@ -85,7 +98,6 @@ def cargar_oportunidades_bq():
             for col in ['OTIC', 'Región', 'Comuna', 'Gatillo']:
                 df[col] = df[col].fillna('No especificado').astype(str)
                 
-            # NUEVO: Creo una columna puramente matemática oculta para que el Slider pueda calcular
             df['Alumnos_Num'] = pd.to_numeric(df['Alumnos'], errors='coerce').fillna(0).astype(int)
             
         return df
@@ -115,21 +127,19 @@ with st.sidebar:
         lista_gatillos = ["Todos"] + sorted(df_base['Gatillo'].unique().tolist())
         lista_fechas = ["Todas"] + fechas_unicas
         
-        # Calculo el máximo de alumnos para ajustar el slider automáticamente
         max_alumnos = int(df_base['Alumnos_Num'].max())
-        if max_alumnos == 0: max_alumnos = 100 # Valor por defecto si no hay datos
+        if max_alumnos == 0: max_alumnos = 100 
         
         filtro_fecha = st.selectbox("📅 Fecha de Detección", lista_fechas)
         filtro_otic = st.selectbox("📌 OTIC", lista_otics)
         filtro_gatillo = st.selectbox("🎯 Gatillo (Palabra Clave)", lista_gatillos)
         
-        # NUEVO SLIDER 
         st.markdown("---")
         filtro_alumnos = st.slider(
             "👥 Rango de Cupos (Alumnos)", 
             min_value=0, 
             max_value=max_alumnos, 
-            value=(0, max_alumnos), # Selecciona todo el rango por defecto
+            value=(0, max_alumnos), 
             help="Desliza para buscar cursos que tengan una cantidad específica de alumnos."
         )
     else:
@@ -154,7 +164,6 @@ if not df_filtrado.empty:
     if filtro_gatillo != "Todos": 
         df_filtrado = df_filtrado[df_filtrado['Gatillo'] == filtro_gatillo]
         
-    #filtro matemático del Slider (Mayor o igual al mínimo, Menor o igual al máximo)
     df_filtrado = df_filtrado[(df_filtrado['Alumnos_Num'] >= filtro_alumnos[0]) & (df_filtrado['Alumnos_Num'] <= filtro_alumnos[1])]
 
 # 7. CABECERA PRINCIPAL
@@ -193,7 +202,7 @@ else:
             column_config={
                 "🗑️ Descartar": st.column_config.CheckboxColumn("Descartar", help="Marca esta casilla para enviar a la lista negra"),
                 "Link Excel": st.column_config.LinkColumn("Descargar Base"),
-                "Alumnos_Num": None # Mantiene oculta la columna matemática temporal para que no estorbe visualmente
+                "Alumnos_Num": None 
             },
             disabled=['Detectado el', 'Llamado', 'OTIC', 'Gatillo', 'Curso', 'Región', 'Comuna', 'Modalidad', 'Link Excel'],
             use_container_width=True,
