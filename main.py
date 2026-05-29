@@ -157,10 +157,26 @@ def orquestador():
                     print(f"🚨 ¡ALERTA MANUAL! {nombre_portal} usa una carpeta de Drive. Enviando aviso al equipo...")
                     enviar_notificacion(titulo_web, 0, nombre_portal, link_drive)
                     archivos_conocidos.add(titulo_web)
+                    
+                    # 👇 NUEVO: Inyectar "fila fantasma" en BigQuery para curar la amnesia
+                    df_drive = pd.DataFrame([{
+                        "palabra_clave": "N/A", "curso": "Carpeta de Drive (Aviso ya enviado)", 
+                        "region": "N/A", "comuna": "N/A", "cupos": "0", "horas": "0", "modalidad": "N/A", "fila": 0
+                    }])
+                    df_drive['link_documento'] = link_drive
+                    df_drive['fecha_deteccion'] = pd.Timestamp.now('America/Santiago')
+                    df_drive['origen_web'] = nombre_portal
+                    df_drive['titulo_llamado_web'] = titulo_web
+                    df_drive['fecha_cierre'] = "Drive Manual"
+                    df_drive['estado'] = "Revisión Manual"
+
+                    cliente = BigQueryClient("proyecto-life-box-licitaciones", "licitaciones", "oportunidades", "credenciales_gcp.json")
+                    cliente.inyectar_datos(df_drive)
+                    # 👆 FIN DEL BLOQUE NUEVO
+                    
                 else:
                     print(f"✅ La carpeta de Drive de {nombre_portal} ya fue notificada. Todo al día.")
                 
-                # 👇 Reportos antes de saltar
                 registrar_estado_scraper(nombre_portal, "OK", "Usa carpeta de Drive") 
                 continue
 
