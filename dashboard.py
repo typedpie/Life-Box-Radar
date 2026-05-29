@@ -19,9 +19,10 @@ st.set_page_config(
 # --- ACTIVAR EL "LIVE VIEW" ---
 st_autorefresh(interval=300000, limit=None, key="autorefresh_dashboard")
 
-# 2. INYECCIÓN DE CSS
+# 2. INYECCIÓN DE CSS (Nuevos estilos para tarjetas de salud agregados)
 st.markdown("""
 <style>
+    /* Estilos KPIs Principales */
     .dashboard-card {
         background-color: var(--secondary-background-color);
         border-radius: 12px;
@@ -30,7 +31,6 @@ st.markdown("""
         text-align: center;
         margin-bottom: 20px;
         border: 1px solid rgba(150, 150, 150, 0.15);
-        transition: all 0.3s ease; 
     }
     .card-title {
         color: var(--text-color);
@@ -49,6 +49,32 @@ st.markdown("""
     .val-blue { color: #4A90E2 !important; }
     .val-orange { color: #F5A623 !important; }
 
+    /* Estilos Tarjetas de Salud (Scrapers) */
+    .health-card {
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-style: solid;
+        background-color: var(--secondary-background-color);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .health-ok {
+        border-color: #28a745;
+        border-left-width: 8px;
+        border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px;
+    }
+    .health-error {
+        border-color: #dc3545;
+        border-left-width: 8px;
+        border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px;
+    }
+    .health-title { font-weight: bold; font-size: 18px; margin-bottom: 5px; }
+    .health-status-ok { color: #28a745; font-weight: bold; }
+    .health-status-error { color: #dc3545; font-weight: bold; }
+    .health-msg { font-size: 13px; opacity: 0.8; margin-top: 5px; min-height: 40px;}
+    .health-date { font-size: 11px; opacity: 0.6; text-align: right; margin-top: 10px;}
+
+    /* Logos Sidebar */
     [data-testid="stSidebar"] img {
         background-color: #ffffff; 
         padding: 8px; 
@@ -70,8 +96,6 @@ credenciales = service_account.Credentials.from_service_account_file(RUTA_CREDEN
 @st.cache_data(ttl=300) 
 def cargar_oportunidades_bq():
     try:
-        # --- vencimientos ---
-        # Este bloque revisa si hay licitaciones cuya fecha ya pasó y las marca como 'Vencido' automáticamente en la base de datos.
         cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
         query_vencidos = f"""
             UPDATE `{ID_PROYECTO}.licitaciones.oportunidades`
@@ -79,10 +103,8 @@ def cargar_oportunidades_bq():
             WHERE (estado = 'Activo' OR estado IS NULL) 
             AND SAFE_CAST(fecha_cierre AS DATE) < CURRENT_DATE('America/Santiago')
         """
-        cliente_bq.query(query_vencidos).result() # Ejecuta el update silenciosamente
-        # ---------------------------------------------------
+        cliente_bq.query(query_vencidos).result()
 
-        # se ve solo lo que tiene estado "activo"
         query_select = f"""
             SELECT fecha_deteccion, titulo_llamado_web, origen_web, palabra_clave, curso, region, comuna, modalidad, cupos, horas, link_documento
             FROM `{ID_PROYECTO}.licitaciones.oportunidades`
@@ -94,18 +116,34 @@ def cargar_oportunidades_bq():
         if not df.empty:
             df.columns = ['Detectado el', 'Llamado', 'OTIC', 'Gatillo', 'Curso', 'Región', 'Comuna', 'Modalidad', 'Alumnos', 'Horas', 'Link Excel']
             df['Detectado el'] = pd.to_datetime(df['Detectado el']).dt.strftime('%d-%m-%Y %H:%M')
-            
             for col in ['OTIC', 'Región', 'Comuna', 'Gatillo']:
                 df[col] = df[col].fillna('No especificado').astype(str)
-                
             df['Alumnos_Num'] = pd.to_numeric(df['Alumnos'], errors='coerce').fillna(0).astype(int)
-            
         return df
     except Exception as e:
-        st.error(f"Error conectando a la base de datos: {e}")
+        st.error(f"Error conectando a la base de datos (Oportunidades): {e}")
+        return pd.DataFrame()
+
+@st.cache_data(ttl=300)
+def cargar_salud_scrapers():
+    """Trae el último estado reportado por cada uno de los scrapers"""
+    try:
+        query_salud = f"""
+            SELECT portal, estado, mensaje, fecha_ejecucion
+            FROM (
+              SELECT *, ROW_NUMBER() OVER(PARTITION BY portal ORDER BY fecha_ejecucion DESC) as rn
+              FROM `{ID_PROYECTO}.licitaciones.estado_scrapers`
+            )
+            WHERE rn = 1
+        """
+        df_salud = pd.read_gbq(query_salud, project_id=ID_PROYECTO, credentials=credenciales)
+        return df_salud
+    except Exception as e:
+        # Falla silenciosamente si la tabla aún no existe (antes de que ocurra el primer escaneo)
         return pd.DataFrame()
 
 df_base = cargar_oportunidades_bq()
+df_salud = cargar_salud_scrapers()
 
 # 5. SIDEBAR: BRANDING Y FILTROS
 with st.sidebar:
@@ -122,11 +160,9 @@ with st.sidebar:
     
     if not df_base.empty:
         fechas_unicas = sorted(list(set([d.split(" ")[0] for d in df_base['Detectado el']])), reverse=True)
-        
         lista_otics = ["Todas"] + sorted(df_base['OTIC'].unique().tolist())
         lista_gatillos = ["Todos"] + sorted(df_base['Gatillo'].unique().tolist())
         lista_fechas = ["Todas"] + fechas_unicas
-        
         max_alumnos = int(df_base['Alumnos_Num'].max())
         if max_alumnos == 0: max_alumnos = 100 
         
@@ -135,13 +171,7 @@ with st.sidebar:
         filtro_gatillo = st.selectbox("🎯 Gatillo (Palabra Clave)", lista_gatillos)
         
         st.markdown("---")
-        filtro_alumnos = st.slider(
-            "👥 Rango de Cupos (Alumnos)", 
-            min_value=0, 
-            max_value=max_alumnos, 
-            value=(0, max_alumnos), 
-            help="Desliza para buscar cursos que tengan una cantidad específica de alumnos."
-        )
+        filtro_alumnos = st.slider("👥 Rango de Cupos", min_value=0, max_value=max_alumnos, value=(0, max_alumnos))
     else:
         st.info("Filtros no disponibles (Base de datos vacía)")
         filtro_otic = filtro_gatillo = filtro_fecha = "Todos"
@@ -157,16 +187,12 @@ with st.sidebar:
 # 6. LÓGICA DE APLICACIÓN DE FILTROS
 df_filtrado = df_base.copy()
 if not df_filtrado.empty:
-    if filtro_fecha != "Todas": 
-        df_filtrado = df_filtrado[df_filtrado['Detectado el'].str.startswith(filtro_fecha)]
-    if filtro_otic != "Todas": 
-        df_filtrado = df_filtrado[df_filtrado['OTIC'] == filtro_otic]
-    if filtro_gatillo != "Todos": 
-        df_filtrado = df_filtrado[df_filtrado['Gatillo'] == filtro_gatillo]
-        
+    if filtro_fecha != "Todas": df_filtrado = df_filtrado[df_filtrado['Detectado el'].str.startswith(filtro_fecha)]
+    if filtro_otic != "Todas": df_filtrado = df_filtrado[df_filtrado['OTIC'] == filtro_otic]
+    if filtro_gatillo != "Todos": df_filtrado = df_filtrado[df_filtrado['Gatillo'] == filtro_gatillo]
     df_filtrado = df_filtrado[(df_filtrado['Alumnos_Num'] >= filtro_alumnos[0]) & (df_filtrado['Alumnos_Num'] <= filtro_alumnos[1])]
 
-# 7. CABECERA PRINCIPAL
+# 7. CABECERA PRINCIPAL Y PESTAÑAS
 col_logo, col_titulo = st.columns([1, 8]) 
 with col_logo:
     if os.path.exists("logo_radar.png"): 
@@ -176,142 +202,128 @@ with col_titulo:
     st.markdown("Plataforma de monitoreo y detección temprana de oportunidades.")
 st.divider()
 
-# 8. DIBUJAR PANTALLA PRINCIPAL
-if df_base.empty:
-    st.info("No hay oportunidades activas en la base de datos en este momento.")
-else:
-    kpi1, kpi2 = st.columns(2)
-    
-    total_ops = len(df_filtrado)
-    total_otics = df_filtrado['OTIC'].nunique() if total_ops > 0 else 0
-    
-    with kpi1:
-        st.markdown(f"""<div class="dashboard-card"><div class="card-title">Oportunidades</div><p class="card-value val-blue">{total_ops}</p></div>""", unsafe_allow_html=True)
-    with kpi2:
-        st.markdown(f"""<div class="dashboard-card"><div class="card-title">OTICs Activas</div><p class="card-value val-orange">{total_otics}</p></div>""", unsafe_allow_html=True)
+# --- CREACIÓN DE PESTAÑAS (TABS) ---
+tab_principal, tab_salud = st.tabs(["📊 Repositorio de Licitaciones", "⚙️ Salud de Scrapers"])
 
-    st.markdown("### 📋 Repositorio de Licitaciones")
-    if total_ops == 0:
-        st.warning("No hay resultados que coincidan con los filtros seleccionados.")
+# ==========================================
+# PESTAÑA 1: REPOSITORIO DE LICITACIONES
+# ==========================================
+with tab_principal:
+    if df_base.empty:
+        st.info("No hay oportunidades activas en la base de datos en este momento.")
     else:
-        df_interactivo = df_filtrado.copy()
-        df_interactivo.insert(0, '🗑️ Descartar', False)
-
-        df_editado = st.data_editor(
-            df_interactivo,
-            column_config={
-                "🗑️ Descartar": st.column_config.CheckboxColumn("Descartar", help="Marca esta casilla para enviar a la lista negra"),
-                "Link Excel": st.column_config.LinkColumn("Descargar Base"),
-                "Alumnos_Num": None 
-            },
-            disabled=['Detectado el', 'Llamado', 'OTIC', 'Gatillo', 'Curso', 'Región', 'Comuna', 'Modalidad', 'Link Excel'],
-            use_container_width=True,
-            hide_index=True,
-            height=400
-        )
-
-        filas_a_descartar = df_editado[df_editado['🗑️ Descartar'] == True]
-
-        if not filas_a_descartar.empty:
-            st.warning(f"Estás a punto de ocultar {len(filas_a_descartar)} documentos de la vista principal.")
-            if st.button("⚠️ Confirmar y Ocultar Selección", type="primary"):
-                
-                cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
-                
-                condiciones_ocultar = []
-                for _, fila in filas_a_descartar.iterrows():
-                    link_safe = str(fila['Link Excel']).replace("'", "\\'")
-                    curso_safe = str(fila['Curso']).replace("'", "\\'")
-                    region_safe = str(fila['Región']).replace("'", "\\'")
-                    comuna_safe = str(fila['Comuna']).replace("'", "\\'")
-                    
-                    condiciones_ocultar.append(
-                        f"(link_documento = '{link_safe}' "
-                        f"AND curso = '{curso_safe}' "
-                        f"AND COALESCE(region, 'No especificado') = '{region_safe}' "
-                        f"AND COALESCE(comuna, 'No especificado') = '{comuna_safe}')"
-                    )
-                
-                where_sql = " OR ".join(condiciones_ocultar)
-                
-                query_update = f"""
-                    UPDATE `{ID_PROYECTO}.licitaciones.oportunidades`
-                    SET estado = 'Descartado'
-                    WHERE {where_sql}
-                """
-                
-                with st.spinner("Enviando a la lista negra..."):
-                    cliente_bq.query(query_update).result() 
-                    st.cache_data.clear()
-                    st.rerun()
-
-# --- PAPELERA DE RECICLAJE ---
-st.markdown("---")
-ver_papelera = st.toggle("🗑️ Abrir Papelera de Reciclaje")
-
-if ver_papelera:
-    st.markdown("#### Documentos Descartados")
-    
-    query_papelera = f"""
-        SELECT fecha_deteccion, titulo_llamado_web, curso, region, comuna, link_documento
-        FROM `{ID_PROYECTO}.licitaciones.oportunidades`
-        WHERE estado = 'Descartado'
-        ORDER BY fecha_deteccion DESC
-    """
-    try:
-        df_papelera = pd.read_gbq(query_papelera, project_id=ID_PROYECTO, credentials=credenciales)
+        kpi1, kpi2 = st.columns(2)
+        total_ops = len(df_filtrado)
+        total_otics = df_filtrado['OTIC'].nunique() if total_ops > 0 else 0
         
-        if df_papelera.empty:
-            st.info("La papelera está vacía.")
+        with kpi1: st.markdown(f"""<div class="dashboard-card"><div class="card-title">Oportunidades</div><p class="card-value val-blue">{total_ops}</p></div>""", unsafe_allow_html=True)
+        with kpi2: st.markdown(f"""<div class="dashboard-card"><div class="card-title">OTICs Activas</div><p class="card-value val-orange">{total_otics}</p></div>""", unsafe_allow_html=True)
+
+        st.markdown("### 📋 Repositorio de Licitaciones")
+        if total_ops == 0:
+            st.warning("No hay resultados que coincidan con los filtros seleccionados.")
         else:
-            df_papelera['region'] = df_papelera['region'].fillna('No especificado').astype(str)
-            df_papelera['comuna'] = df_papelera['comuna'].fillna('No especificado').astype(str)
-            
-            df_papelera.insert(0, '♻️ Restaurar', False)
-            
-            df_papelera_edit = st.data_editor(
-                df_papelera,
+            df_interactivo = df_filtrado.copy()
+            df_interactivo.insert(0, '🗑️ Descartar', False)
+
+            df_editado = st.data_editor(
+                df_interactivo,
                 column_config={
-                    "♻️ Restaurar": st.column_config.CheckboxColumn("Restaurar", help="Marca para devolver a la vista principal")
+                    "🗑️ Descartar": st.column_config.CheckboxColumn("Descartar", help="Marca para enviar a lista negra"),
+                    "Link Excel": st.column_config.LinkColumn("Descargar Base"),
+                    "Alumnos_Num": None 
                 },
-                disabled=['fecha_deteccion', 'titulo_llamado_web', 'curso', 'region', 'comuna', 'link_documento'],
-                use_container_width=True,
-                hide_index=True
+                disabled=['Detectado el', 'Llamado', 'OTIC', 'Gatillo', 'Curso', 'Región', 'Comuna', 'Modalidad', 'Link Excel'],
+                use_container_width=True, hide_index=True, height=400
             )
-            
-            filas_a_restaurar = df_papelera_edit[df_papelera_edit['♻️ Restaurar'] == True]
-            
-            if not filas_a_restaurar.empty:
-                if st.button("✨ Confirmar Restauración", type="primary"):
+
+            filas_a_descartar = df_editado[df_editado['🗑️ Descartar'] == True]
+            if not filas_a_descartar.empty:
+                st.warning(f"Estás a punto de ocultar {len(filas_a_descartar)} documentos.")
+                if st.button("⚠️ Confirmar y Ocultar Selección", type="primary"):
+                    cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
+                    condiciones = [f"(link_documento = '{str(f['Link Excel']).replace(chr(39), chr(92)+chr(39))}' AND curso = '{str(f['Curso']).replace(chr(39), chr(92)+chr(39))}')" for _, f in filas_a_descartar.iterrows()]
+                    query_update = f"UPDATE `{ID_PROYECTO}.licitaciones.oportunidades` SET estado = 'Descartado' WHERE {' OR '.join(condiciones)}"
                     
-                    condiciones_restaurar = []
-                    for _, fila in filas_a_restaurar.iterrows():
-                        link_safe = str(fila['link_documento']).replace("'", "\\'")
-                        curso_safe = str(fila['curso']).replace("'", "\\'")
-                        region_safe = str(fila['region']).replace("'", "\\'")
-                        comuna_safe = str(fila['comuna']).replace("'", "\\'")
-                        
-                        condiciones_restaurar.append(
-                            f"(link_documento = '{link_safe}' "
-                            f"AND curso = '{curso_safe}' "
-                            f"AND COALESCE(region, 'No especificado') = '{region_safe}' "
-                            f"AND COALESCE(comuna, 'No especificado') = '{comuna_safe}')"
-                        )
-                    
-                    where_sql_restaurar = " OR ".join(condiciones_restaurar)
-                    
-                    query_revivir = f"""
-                        UPDATE `{ID_PROYECTO}.licitaciones.oportunidades`
-                        SET estado = 'Activo'
-                        WHERE {where_sql_restaurar}
-                    """
-                    
-                    with st.spinner("Restaurando documentos..."):
-                        cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
-                        cliente_bq.query(query_revivir).result()
-                        
+                    with st.spinner("Enviando a la lista negra..."):
+                        cliente_bq.query(query_update).result() 
                         st.cache_data.clear()
                         st.rerun()
-                        
-    except Exception as e:
-        st.error(f"Error cargando la papelera: {e}")
+
+    # --- PAPELERA DE RECICLAJE ---
+    st.markdown("---")
+    if st.toggle("🗑️ Abrir Papelera de Reciclaje"):
+        st.markdown("#### Documentos Descartados")
+        try:
+            df_papelera = pd.read_gbq(f"SELECT fecha_deteccion, titulo_llamado_web, curso, region, comuna, link_documento FROM `{ID_PROYECTO}.licitaciones.oportunidades` WHERE estado = 'Descartado' ORDER BY fecha_deteccion DESC", project_id=ID_PROYECTO, credentials=credenciales)
+            if df_papelera.empty:
+                st.info("La papelera está vacía.")
+            else:
+                df_papelera.insert(0, '♻️ Restaurar', False)
+                df_papelera_edit = st.data_editor(df_papelera, column_config={"♻️ Restaurar": st.column_config.CheckboxColumn("Restaurar")}, disabled=df_papelera.columns[1:], use_container_width=True, hide_index=True)
+                filas_restaurar = df_papelera_edit[df_papelera_edit['♻️ Restaurar'] == True]
+                
+                if not filas_restaurar.empty and st.button("✨ Confirmar Restauración", type="primary"):
+                    cliente_bq = bigquery.Client(project=ID_PROYECTO, credentials=credenciales)
+                    condiciones = [f"(link_documento = '{str(f['link_documento']).replace(chr(39), chr(92)+chr(39))}' AND curso = '{str(f['curso']).replace(chr(39), chr(92)+chr(39))}')" for _, f in filas_restaurar.iterrows()]
+                    query_revivir = f"UPDATE `{ID_PROYECTO}.licitaciones.oportunidades` SET estado = 'Activo' WHERE {' OR '.join(condiciones)}"
+                    with st.spinner("Restaurando..."):
+                        cliente_bq.query(query_revivir).result()
+                        st.cache_data.clear()
+                        st.rerun()
+        except Exception as e:
+            st.error(f"Error cargando la papelera: {e}")
+
+# ==========================================
+# PESTAÑA 2: SALUD DE LOS SCRAPERS
+# ==========================================
+with tab_salud:
+    st.markdown("### Monitoreo en Tiempo Real")
+    st.markdown("Revisa si las páginas web de las OTICs han cambiado su estructura interna o si están funcionando correctamente.")
+    st.write("")
+
+    if df_salud.empty:
+        st.info("📡 Aún no hay datos de monitoreo. Espera a que el Orquestador ejecute su primer ciclo completo.")
+    else:
+        # Crear un grid de 3 columnas
+        columnas = st.columns(3)
+        
+        for indice, fila in df_salud.iterrows():
+            portal = fila['portal']
+            estado = fila['estado']
+            mensaje = fila['mensaje']
+            
+            # Formatear la fecha
+            try:
+                fecha_obj = pd.to_datetime(fila['fecha_ejecucion'])
+                fecha_formateada = fecha_obj.strftime('%d-%m-%Y %H:%M')
+            except:
+                fecha_formateada = "Desconocida"
+                
+            # Determinar los estilos basados en si falló o no
+            if estado == "OK":
+                css_clase = "health-ok"
+                icono = "🟢"
+                texto_estado = "Funcionando correctamente"
+                clase_texto = "health-status-ok"
+                mensaje_mostrar = "" 
+            else:
+                css_clase = "health-error"
+                icono = "🔴"
+                texto_estado = "ERROR DE SCRAPER"
+                clase_texto = "health-status-error"
+                mensaje_mostrar = f"Detalle técnico: {str(mensaje)[:100]}..." # Truncar error si es muy largo
+
+            # Ensamblar la tarjeta en HTML puro
+            tarjeta_html = f"""
+            <div class="health-card {css_clase}">
+                <div class="health-title">{portal}</div>
+                <div class="{clase_texto}">{icono} {texto_estado}</div>
+                <div class="health-msg">{mensaje_mostrar}</div>
+                <div class="health-date">Última revisión: {fecha_formateada}</div>
+            </div>
+            """
+            
+            # Repartir las tarjetas secuencialmente en las 3 columnas
+            columna_actual = columnas[indice % 3]
+            columna_actual.markdown(tarjeta_html, unsafe_allow_html=True)

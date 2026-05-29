@@ -20,28 +20,34 @@ class AlianzaPymeScraperSelenium:
 
     def fetch_tender_links(self):
         
+        #2 años para logica de doble intento
         anio_actual = str(datetime.now().year) 
+        anio_anterior = str(datetime.now().year - 1)
+        
         logging.info(f"Iniciando exploración en Alianza Pyme: {self.url_principal}")
         
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.opciones)
         enlaces_unicos = {}
-        titulo_encontrado = f"Llamado Licitación Alianza Pyme {anio_actual}"
+        titulo_encontrado = f"Llamado Licitación Alianza Pyme {anio_actual}" # Fallback de título
 
         try:
             driver.get(self.url_principal)
             time.sleep(3)
 
-            logging.info(f"Ejecutando Cirugía de Código para aislar la sección del año {anio_actual}...")
+            anios_a_buscar = [anio_actual, anio_anterior]
+            anio_detectado = None
 
+            #ADAPTADO: Ahora recibe el año que quiero buscar y el año de "límite inferior"
             script_js = """
                 const anioTarget = arguments[0];
-                const anioAnterior = (parseInt(anioTarget) - 1).toString();
+                const anioCierre = arguments[1];
                 
                 const headings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6, .elementor-heading-title, .elementor-widget-heading'));
                 
                 let startNode = null;
                 let endNode = null;
 
+                // Buscar donde empieza el año objetivo
                 for (let h of headings) {
                     if (h.innerText.includes(anioTarget)) {
                         startNode = h;
@@ -49,12 +55,13 @@ class AlianzaPymeScraperSelenium:
                     }
                 }
                 
-                if (startNode) {
-                    for (let h of headings) {
-                        if (h.innerText.includes(anioAnterior) && (startNode.compareDocumentPosition(h) & 4)) {
-                            endNode = h;
-                            break;
-                        }
+                if (!startNode) return null; // Si no existe el título del año, abortamos en JS
+                
+                // Buscar donde termina (el año anterior a ese)
+                for (let h of headings) {
+                    if (h.innerText.includes(anioCierre) && (startNode.compareDocumentPosition(h) & 4)) {
+                        endNode = h;
+                        break;
                     }
                 }
 
@@ -62,8 +69,6 @@ class AlianzaPymeScraperSelenium:
                 const resultados = [];
                 
                 for (let link of links) {
-                    if (!startNode) break; 
-                    
                     const isAfterStart = (startNode.compareDocumentPosition(link) & 4);
                     const isBeforeEnd = endNode ? (endNode.compareDocumentPosition(link) & 2) : true;
                     
@@ -75,21 +80,32 @@ class AlianzaPymeScraperSelenium:
                 }
                 return resultados;
             """
-            
-            links_aislados = driver.execute_script(script_js, anio_actual)
 
-            if not links_aislados:
-                logging.info(f"Aún no existen documentos publicados para el año {anio_actual} bajo ese título.")
-            else:
-                for href in links_aislados:
-                    href_limpio = href.strip()
-                    if any(ext in href_limpio.lower() for ext in ['.pdf', '.docx', '.doc', '.xlsx', '.xls', '.zip']):
-                        url_base = unquote(href_limpio.split('?')[0])
-                        if url_base not in enlaces_unicos:
-                            enlaces_unicos[url_base] = href_limpio
+            # Intento primero con 2026, si falla, con 2025
+            for anio_objetivo in anios_a_buscar:
+                anio_cierre = str(int(anio_objetivo) - 1)
+                logging.info(f"Ejecutando Cirugía de Código para aislar la sección del año {anio_objetivo}...")
+                
+                links_aislados = driver.execute_script(script_js, anio_objetivo, anio_cierre)
+
+                if not links_aislados:
+                    logging.info(f"Aún no existen documentos publicados para el año {anio_objetivo} bajo ese título.")
+                else:
+                    anio_detectado = anio_objetivo
+                    titulo_encontrado = f"Alianza Pyme - Licitación ({anio_detectado})"
+                    
+                    for href in links_aislados:
+                        href_limpio = href.strip()
+                        if any(ext in href_limpio.lower() for ext in ['.pdf', '.docx', '.doc', '.xlsx', '.xls', '.zip']):
+                            url_base = unquote(href_limpio.split('?')[0])
+                            if url_base not in enlaces_unicos:
+                                enlaces_unicos[url_base] = href_limpio
+                    
+                    logging.info(f"🎯 ¡Blanco fijado en {anio_detectado}! Se capturaron {len(enlaces_unicos)} documentos.")
+                    break # se rompe el ciclo si se encuentra una paquete de licitaciones
 
             enlaces = set(enlaces_unicos.values())
-            logging.info(f"Extracción milimétrica exitosa: {len(enlaces)} documentos únicos de {anio_actual} capturados.")
+            logging.info(f"Extracción milimétrica exitosa: {len(enlaces)} documentos únicos en total.")
 
         except Exception as e:
             logging.error(f"Error explorando la página de Alianza Pyme: {e}")

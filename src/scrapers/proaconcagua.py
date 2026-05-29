@@ -9,7 +9,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
-
 class ProAconcaguaScraperSelenium:
     def __init__(self):
         self.url = "https://www.oticproaconcagua.cl/becas-laborales/"
@@ -21,7 +20,10 @@ class ProAconcaguaScraperSelenium:
         self.opciones.add_argument("--window-size=1920,1080")
 
     def fetch_tender_links(self):
+        # 🎯 
         anio_actual = str(datetime.now().year)
+        anio_anterior = str(datetime.now().year - 1)
+        
         logging.info(f"Iniciando exploración en Pro Aconcagua: {self.url}")
         
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.opciones)
@@ -31,33 +33,41 @@ class ProAconcaguaScraperSelenium:
         try:
             driver.get(self.url)
             
-            # Bloque de elementor
+            # Esperar a que cargue el bloque principal
             WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.CLASS_NAME, "elementor-text-editor"))
             )
             time.sleep(2)
 
-            
-            xpath_titulo = f"//h2[contains(., '{anio_actual}')]"
-            titulos = driver.find_elements(By.XPATH, xpath_titulo)
+            anios_a_buscar = [anio_actual, anio_anterior]
 
-            if titulos:
-                titulo_elemento = titulos[0]
-                titulo_encontrado = titulo_elemento.text.strip()
-                logging.info(f"¡Título detectado!: '{titulo_encontrado}'")
+            for anio_objetivo in anios_a_buscar:
+                logging.info(f"Buscando el título para el año {anio_objetivo}...")
+                xpath_titulo = f"//h2[contains(., '{anio_objetivo}')]"
+                titulos = driver.find_elements(By.XPATH, xpath_titulo)
 
-                
-                xpath_boton = "./following::a[contains(@class, 'elementor-button-link')][1]"
-                try:
-                    boton = titulo_elemento.find_element(By.XPATH, xpath_boton)
-                    href = boton.get_attribute("href")
-                    if href:
-                        enlaces.add(href)
-                        logging.info(f"Link a la carpeta capturado: {href}")
-                except Exception:
-                    logging.warning("Se encontró el título pero no el botón de descarga.")
-            else:
-                logging.info(f"Aún no hay licitaciones publicadas para el año {anio_actual} en Pro Aconcagua.")
+                if titulos:
+                    titulo_elemento = titulos[0]
+                    texto_titulo = titulo_elemento.text.strip()
+                    titulo_encontrado = f"Pro Aconcagua - {texto_titulo}"
+                    logging.info(f"¡Título detectado!: '{texto_titulo}'")
+
+                    # Busco el botón de descarga o link al Drive que esté justo después del título
+                    xpath_boton = "./following::a[contains(@class, 'elementor-button-link')][1]"
+                    try:
+                        boton = titulo_elemento.find_element(By.XPATH, xpath_boton)
+                        href = boton.get_attribute("href")
+                        if href:
+                            enlaces.add(href)
+                            logging.info(f"Link a la carpeta capturado: {href}")
+                            break # 🎯 Rompemos el ciclo porque encontramos el año 
+                    except Exception:
+                        logging.warning("Se encontró el título pero no el botón de descarga.")
+                else:
+                    logging.info(f"No se encontró el título para el año {anio_objetivo}.")
+
+            if not enlaces:
+                logging.info(f"Aún no hay licitaciones publicadas para los años {anio_actual} ni {anio_anterior} en Pro Aconcagua.")
 
         except Exception as e:
             logging.error(f"Error explorando la página: {e}")
@@ -68,7 +78,9 @@ class ProAconcaguaScraperSelenium:
 
 # Prueba local
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     scraper = ProAconcaguaScraperSelenium()
     links, titulo = scraper.fetch_tender_links()
     print(f"\n📌 {titulo}")
-    for link in links: print(f"- {link}")
+    for link in links: 
+        print(f"- {link}")

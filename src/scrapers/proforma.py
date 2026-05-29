@@ -29,11 +29,12 @@ class ProformaScraperSelenium:
     def fetch_tender_links(self):
         logging.info(f"Iniciando navegación en: {self.url}")
         
+        # 🎯 ambos años
         anio_actual = str(datetime.now().year)
-        logging.info(f"Filtro temporal activado: Buscando exclusivamente licitaciones del año {anio_actual}")
+        anio_anterior = str(datetime.now().year - 1)
         
-        # Variable por defecto en caso de que la página cambie su estructura de repente
-        titulo_acordeon_encontrado = f"Llamado Licitación {anio_actual}" 
+        titulo_acordeon_encontrado = f"Llamado Licitación Proforma {anio_actual}" 
+        enlaces_encontrados = set()
         
         try:
             self.driver.get(self.url)
@@ -43,46 +44,53 @@ class ProformaScraperSelenium:
             selector_acordeones = "details.e-n-accordion-item"
             acordeones = self.driver.find_elements(By.CSS_SELECTOR, selector_acordeones)
             
-            # PASO 1: ABRIR SOLO LOS ACORDEONES DEL AÑO ACTUAL
-            for acordeon in acordeones:
-                texto_acordeon = acordeon.text
-                if anio_actual in texto_acordeon:
-                    logging.info(f"Acordeón del año {anio_actual} detectado. Desplegando...")
-                    if not acordeon.get_attribute("open"):
-                        self.driver.execute_script("arguments[0].setAttribute('open', '')", acordeon)
-                        time.sleep(0.5)
-
-            logging.info("Extrayendo HTML final...")
-            html_final = self.driver.page_source
-            soup = BeautifulSoup(html_final, 'html.parser')
+            anios_a_buscar = [anio_actual, anio_anterior]
             
-            enlaces_encontrados = set()
-            acordeones_html = soup.find_all('details', class_='e-n-accordion-item')
-            
-            # PASO 2: EXTRAER ENLACES Y EL TÍTULO EXACTO DEL ACORDEÓN
-            if acordeones_html:
-                for acordeon in acordeones_html:
-                    texto_resumen = acordeon.get_text()
-                    
-                    if anio_actual in texto_resumen:
-                                              
-                        etiqueta_titulo = acordeon.find('summary')
-                        if etiqueta_titulo:
-                            
-                            titulo_acordeon_encontrado = etiqueta_titulo.get_text(strip=True)
-                            logging.info(f"Título exacto capturado: {titulo_acordeon_encontrado}")
-                        # --------------------------
-
-                        for enlace in acordeon.find_all('a', href=True):
-                            href = enlace['href']
-                            if any(ext in href.lower() for ext in ['.pdf', '.docx', '.doc', '.xlsx', '.xls', '.zip']):
-                                enlaces_encontrados.add(href)
-            else:
-                logging.warning("No se encontraron elementos <details> en el HTML extraído.")
+            for anio_objetivo in anios_a_buscar:
+                logging.info(f"Buscando acordeones correspondientes al año {anio_objetivo}...")
+                hubo_exito = False
                 
-            logging.info(f"Extracción completada. Se encontraron {len(enlaces_encontrados)} documentos vigentes.")
-            
-            
+                # PASO 1: ABRIR SOLO LOS ACORDEONES DEL AÑO OBJETIVO
+                for acordeon in acordeones:
+                    texto_acordeon = acordeon.text
+                    if anio_objetivo in texto_acordeon:
+                        logging.info(f"Acordeón del año {anio_objetivo} detectado. Desplegando...")
+                        if not acordeon.get_attribute("open"):
+                            self.driver.execute_script("arguments[0].setAttribute('open', '')", acordeon)
+                            time.sleep(0.5)
+                        hubo_exito = True
+
+                # PASO 2: SI ENCuentro ALGO, EXTRAEMOS EL HTML Y SACAMOS LOS LINKS
+                if hubo_exito:
+                    logging.info("Extrayendo HTML final...")
+                    html_final = self.driver.page_source
+                    soup = BeautifulSoup(html_final, 'html.parser')
+                    
+                    acordeones_html = soup.find_all('details', class_='e-n-accordion-item')
+                    
+                    if acordeones_html:
+                        for acordeon in acordeones_html:
+                            texto_resumen = acordeon.get_text()
+                            
+                            if anio_objetivo in texto_resumen:
+                                etiqueta_titulo = acordeon.find('summary')
+                                if etiqueta_titulo:
+                                    # Le sumamos "Proforma" al título para mayor claridad en el dashboard
+                                    titulo_acordeon_encontrado = f"Proforma - {etiqueta_titulo.get_text(strip=True)}"
+                                    logging.info(f"Título exacto capturado: {titulo_acordeon_encontrado}")
+
+                                for enlace in acordeon.find_all('a', href=True):
+                                    href = enlace['href']
+                                    if any(ext in href.lower() for ext in ['.pdf', '.docx', '.doc', '.xlsx', '.xls', '.zip']):
+                                        enlaces_encontrados.add(href)
+                    else:
+                        logging.warning("No se encontraron elementos <details> en el HTML extraído.")
+                        
+                    logging.info(f"Extracción completada. Se encontraron {len(enlaces_encontrados)} documentos vigentes para {anio_objetivo}.")
+                    break # 🎯 se rompe el ciclo por data encontrada
+                else:
+                    logging.info(f"No se encontraron acordeones para el año {anio_objetivo}.")
+
             return enlaces_encontrados, titulo_acordeon_encontrado
 
         except Exception as e:
@@ -93,7 +101,7 @@ class ProformaScraperSelenium:
             logging.info("Cerrando el navegador automatizado.")
             self.driver.quit()
 
-# Bloque de prueba local actualizado para soportar el nuevo formato
+# Bloque de prueba local
 if __name__ == "__main__":
     scraper = ProformaScraperSelenium()
     
@@ -102,9 +110,9 @@ if __name__ == "__main__":
     print(f"\n--- TÍTULO DEL LLAMADO ---")
     print(f"📌 {titulo}")
     
-    print(f"\n--- Documentos Vigentes ({datetime.now().year}) ---")
+    print(f"\n--- Documentos Vigentes ---")
     if links:
         for link in links:
             print(f"- {link}")
     else:
-        print("No se encontraron enlaces para el año en curso.")
+        print("No se encontraron enlaces.")

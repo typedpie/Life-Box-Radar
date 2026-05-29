@@ -3,3 +3,4 @@ temp_docs/
 __pycache__/
 estado_proforma.json
 .env
+bot_telegram.py

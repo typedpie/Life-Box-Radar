@@ -20,56 +20,64 @@ class AgrocapScraperSelenium:
 
     def fetch_tender_links(self):
         
+        # logica de doble intento para transicion de años
         anio_actual = str(datetime.now().year) 
+        anio_anterior = str(datetime.now().year - 1)
+        
         logging.info(f"Iniciando exploración en Agrocap: {self.url_principal}")
         
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.opciones)
         enlaces = set()
-        titulo_encontrado = f"Llamado Licitación Agrocap {anio_actual}"
+        titulo_encontrado = f"Llamado Licitación Agrocap {anio_actual}" # Título por defecto
 
         try:
             driver.get(self.url_principal)
             time.sleep(3)
 
-            # --- FASE 1: BUSCAR EL CALENDARIO ---
-            logging.info(f"Buscando el calendario del año {anio_actual}...")
+            # --- FASE 1: BUSCAR EL CALENDARIO  ---
             url_subpagina = None
-            
-            try:
-                # 1. Titulos que contengan el año
-                xpath_textos = f"//div[contains(@class, 'elementor-widget-heading') and contains(., '{anio_actual}')]"
-                textos_anio = driver.find_elements(By.XPATH, xpath_textos)
-                
-                for nodo in textos_anio:
-                    try:
-                        
-                        envoltura = nodo.find_element(By.XPATH, "./ancestor::div[contains(@class, 'elementor-widget-wrap')][1]")
-                        
-                        # 3. Busco el enlace (a) que vive dentro de esta misma envoltura pequeña
-                        enlace = envoltura.find_element(By.XPATH, ".//a[@href]")
-                        url_subpagina = enlace.get_attribute("href")
-                        
-                        if url_subpagina:
-                            break # Romper ciclo si se encuentrs
-                    except Exception:
-                        continue # 
-                
-                if url_subpagina:
-                    logging.info(f"¡Calendario {anio_actual} detectado de forma aislada! Viajando a la bóveda: {url_subpagina}")
-                else:
-                    logging.info(f"Aún no existe el calendario para el año {anio_actual} en Agrocap.")
-                    return enlaces, titulo_encontrado 
+            anio_detectado = None
+            anios_a_buscar = [anio_actual, anio_anterior] # Intentará primero el actual, luego el anterior
 
-            except Exception as e:
-                logging.error(f"Error en Fase 1: {e}")
-                return enlaces, titulo_encontrado
+            for anio_objetivo in anios_a_buscar:
+                logging.info(f"Buscando el calendario del año {anio_objetivo}...")
+                try:
+                    # 1. Titulos que contengan el año iterado
+                    xpath_textos = f"//div[contains(@class, 'elementor-widget-heading') and contains(., '{anio_objetivo}')]"
+                    textos_anio = driver.find_elements(By.XPATH, xpath_textos)
+                    
+                    for nodo in textos_anio:
+                        try:
+                            envoltura = nodo.find_element(By.XPATH, "./ancestor::div[contains(@class, 'elementor-widget-wrap')][1]")
+                            
+                            # Busco el enlace (a) que vive dentro de esta misma envoltura pequeña
+                            enlace = envoltura.find_element(By.XPATH, ".//a[@href]")
+                            url_subpagina = enlace.get_attribute("href")
+                            
+                            if url_subpagina:
+                                anio_detectado = anio_objetivo
+                                break # Romper ciclo de nodos si se encuentra
+                        except Exception:
+                            continue 
+                    
+                    if url_subpagina:
+                        logging.info(f"¡Calendario {anio_objetivo} detectado! Viajando a la bóveda: {url_subpagina}")
+                        break # Romper ciclo de años 
+                        
+                except Exception as e:
+                    logging.warning(f"Error evaluando el año {anio_objetivo}: {e}")
 
-            # --- FASE 2: CIRUGÍA DE CÓDIGO (
+            # Si después de intentar ambos años no hay url, aborta
+            if not url_subpagina:
+                logging.info(f"No se encontró el calendario ni para {anio_actual} ni para {anio_anterior} en Agrocap.")
+                return enlaces, titulo_encontrado 
+
+            # --- FASE 2: CIRUGÍA DE CÓDIGO ---
             driver.get(url_subpagina)
             time.sleep(3)
 
             try:
-                # 1. Busco todos los titulos
+                # 1. Busca todos los titulos de llamados
                 xpath_titulos = "//*[not(ancestor-or-self::a) and contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'llamado licitación')]"
                 nodos_titulos = driver.find_elements(By.XPATH, xpath_titulos)
 
@@ -84,14 +92,14 @@ class AgrocapScraperSelenium:
                     
                     max_num = max(t["num"] for t in lista_titulos)
                     
-                    
                     idx_campeon = next(i for i, t in enumerate(lista_titulos) if t["num"] == max_num)
                     
-                    titulo_encontrado = lista_titulos[idx_campeon]["texto"]
+                    # Le inyecto el año detectado al título final para mayor claridad
+                    titulo_encontrado = f"Agrocap - {lista_titulos[idx_campeon]['texto']} ({anio_detectado})"
                     nodo_inicio = lista_titulos[idx_campeon]["nodo"]
                     logging.info(f"🏆 Campeón detectado: {titulo_encontrado}")
 
-                    # 3.
+                    # Límite inferior
                     nodo_fin = None
                     if idx_campeon + 1 < len(lista_titulos):
                         nodo_fin = lista_titulos[idx_campeon + 1]["nodo"]
@@ -99,7 +107,7 @@ class AgrocapScraperSelenium:
                     else:
                         logging.info("🛑 No hay llamados más antiguos. Se leerá hasta el final de la página.")
 
-                    # 4. Javascript
+                    # Javascript Extractor
                     script_js = """
                         var startNode = arguments[0];
                         var endNode = arguments[1];
@@ -124,10 +132,10 @@ class AgrocapScraperSelenium:
                         return result;
                     """
                     
-                    #ejecuto el script en Chrome
+                    # Ejecuto el script en Chrome
                     links_aislados = driver.execute_script(script_js, nodo_inicio, nodo_fin)
 
-                    # 5. Guardo
+                    # Guardo
                     for href in links_aislados:
                         if any(ext in href.lower() for ext in ['.pdf', '.docx', '.doc', '.xlsx', '.xls', '.zip']):
                             enlaces.add(href)
