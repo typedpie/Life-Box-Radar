@@ -13,6 +13,7 @@ class OticSofofaScraperSelenium:
         self.url_principal = "https://www.oticsofofa.cl/becas-laborales/" 
         
         self.opciones = Options()
+        self.opciones.page_load_strategy = 'eager'
         self.opciones.add_argument("--headless") 
         self.opciones.add_argument("--no-sandbox")
         self.opciones.add_argument("--disable-dev-shm-usage") 
@@ -29,6 +30,7 @@ class OticSofofaScraperSelenium:
         logging.info(f"Iniciando exploración en OTIC Sofofa: {self.url_principal}")
         
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.opciones)
+        driver.set_page_load_timeout(30)
         enlaces_unicos = {}
         titulo_encontrado = f"Llamado Licitación OTIC Sofofa {anio_actual}"
 

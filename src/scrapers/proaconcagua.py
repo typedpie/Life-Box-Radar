@@ -14,6 +14,7 @@ class ProAconcaguaScraperSelenium:
         self.url = "https://www.oticproaconcagua.cl/becas-laborales/"
         
         self.opciones = Options()
+        self.opciones.page_load_strategy = 'eager'
         self.opciones.add_argument("--headless=new")
         self.opciones.add_argument("--no-sandbox")
         self.opciones.add_argument("--disable-dev-shm-usage")
@@ -27,6 +28,7 @@ class ProAconcaguaScraperSelenium:
         logging.info(f"Iniciando exploración en Pro Aconcagua: {self.url}")
         
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.opciones)
+        driver.set_page_load_timeoutt(30)
         enlaces = set()
         titulo_encontrado = f"Llamado Licitación Pro Aconcagua {anio_actual}"
 

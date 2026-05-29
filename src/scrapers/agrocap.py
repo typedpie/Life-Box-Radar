@@ -13,10 +13,12 @@ class AgrocapScraperSelenium:
         self.url_principal = "https://www.agrocap.cl/webid/?page_id=292" #2" 
         
         self.opciones = Options()
+        self.opciones.page_load_strategy = 'eager'
         self.opciones.add_argument("--headless=new")
         self.opciones.add_argument("--no-sandbox")
         self.opciones.add_argument("--disable-dev-shm-usage")
         self.opciones.add_argument("--window-size=1920,1080")
+         
 
     def fetch_tender_links(self):
         
@@ -27,6 +29,7 @@ class AgrocapScraperSelenium:
         logging.info(f"Iniciando exploración en Agrocap: {self.url_principal}")
         
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.opciones)
+        driver.set_page_load_timeout(30)
         enlaces = set()
         titulo_encontrado = f"Llamado Licitación Agrocap {anio_actual}" # Título por defecto
 

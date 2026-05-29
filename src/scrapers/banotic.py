@@ -12,6 +12,7 @@ class BanoticScraperSelenium:
         self.url_principal = "https://banotic.cl/becas-laborales/" 
         
         self.opciones = Options()
+        self.opciones.page_load_strategy = 'eager'
         self.opciones.add_argument("--headless=new")
         self.opciones.add_argument("--no-sandbox")
         self.opciones.add_argument("--disable-dev-shm-usage")
@@ -26,6 +27,7 @@ class BanoticScraperSelenium:
         logging.info(f"Iniciando exploración en Banotic: {self.url_principal}")
         
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.opciones)
+        driver.set_page_load_timeout(30)
         enlaces = set()
         titulo_encontrado = f"Llamado Licitación Banotic {anio_actual}" 
 
