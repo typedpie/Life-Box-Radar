@@ -10,7 +10,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 class AgrocapScraperSelenium:
     def __init__(self):
-        self.url_principal = "https://www.agrocap.cl/webid/?page_id=2922" 
+        self.url_principal = "https://www.agrocap.cl/webid/?page_id=292"#2" 
         
         self.opciones = Options()
         self.opciones.page_load_strategy = 'eager'
@@ -72,8 +72,9 @@ class AgrocapScraperSelenium:
 
             # Si después de intentar ambos años no hay url, aborta
             if not url_subpagina:
-                logging.info(f"No se encontró el calendario ni para {anio_actual} ni para {anio_anterior} en Agrocap.")
-                return enlaces, titulo_encontrado 
+                raise Exception (f"Error 404 o Cambio de Diseño: No se encontró la estructura esperada en la URL {self.url_principal}")
+                #logging.info(f"No se encontró el calendario ni para {anio_actual} ni para {anio_anterior} en Agrocap.")
+                #return enlaces, titulo_encontrado 
 
             # --- FASE 2: CIRUGÍA DE CÓDIGO ---
             driver.get(url_subpagina)
