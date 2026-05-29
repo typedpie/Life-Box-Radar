@@ -153,6 +153,7 @@ class AgrocapScraperSelenium:
 
         except Exception as e:
             logging.error(f"Error explorando la página principal de Agrocap: {e}")
+            raise e
         finally:
             driver.quit()
 
