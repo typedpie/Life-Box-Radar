@@ -36,7 +36,7 @@ def obtener_archivos_conocidos():
         return set()
 
 def enviar_notificacion(titulo, cantidad, portal, link_especial=None):
-    # --- CONFIGURACIÓN TELEGRAM  ---
+    # --- CONFIGURACIÓN TELEGRAM ---
     TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
     CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
     
@@ -44,17 +44,18 @@ def enviar_notificacion(titulo, cantidad, portal, link_especial=None):
         logging.error("⚠️ Faltan las credenciales de Telegram en las variables de entorno.")
         return
 
-    # Aarmo el mensaje
+    # Uso etiquetas HTML (<b> para negrita, <i> para cursiva) 
+    # Esto evita que los guiones bajos en los links o títulos rompan Telegram
     if link_especial: 
-        contenido = f"🚨 *¡NUEVA PUBLICACIÓN EN {portal.upper()}!* 🚨\nProceso: *{titulo}*\n⚠️ _Este portal usa Drive. Revisar manualmente:_ {link_especial}"
+        contenido = f"🚨 <b>¡NUEVA PUBLICACIÓN EN {portal.upper()}!</b> 🚨\nProceso: <b>{titulo}</b>\n⚠️ <i>Este portal usa Drive. Revisar manualmente:</i> {link_especial}"
     else: 
-        contenido = f"🚨 *¡NUEVA LICITACIÓN EN {portal.upper()}!* 🚨\nProceso: *{titulo}*\n🎯 Se inyectaron *{cantidad}* oportunidades en BigQuery."
+        contenido = f"🚨 <b>¡NUEVA LICITACIÓN EN {portal.upper()}!</b> 🚨\nProceso: <b>{titulo}</b>\n🎯 Se inyectaron <b>{cantidad}</b> oportunidades en BigQuery."
     
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
         "chat_id": CHAT_ID,
         "text": contenido,
-        "parse_mode": "Markdown"
+        "parse_mode": "HTML"  # <--- CAMBIADO A HTML
     }
     
     try:
