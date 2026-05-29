@@ -23,13 +23,21 @@ def obtener_archivos_conocidos():
     logging.info("🧠 Consultando memoria en BigQuery...")
     try:
         credenciales = service_account.Credentials.from_service_account_file("credenciales_gcp.json")
-        query = "SELECT DISTINCT link_documento FROM `proyecto-life-box-licitaciones.licitaciones.oportunidades`"
+        # NUEVO: Ahora extraemos también el título web de BigQuery
+        query = "SELECT DISTINCT link_documento, titulo_llamado_web FROM `proyecto-life-box-licitaciones.licitaciones.oportunidades`"
         df_historial = pd.read_gbq(query, project_id="proyecto-life-box-licitaciones", credentials=credenciales)
         
         archivos_en_bq = set()
-        for link in df_historial['link_documento'].dropna().tolist():
-            nombre_archivo = unquote(str(link).split('/')[-1].split('?')[0].strip())
-            archivos_en_bq.add(nombre_archivo)
+        for _, fila in df_historial.iterrows():
+            link = fila['link_documento']
+            if pd.notna(link):
+                nombre_archivo = unquote(str(link).split('/')[-1].split('?')[0].strip())
+                archivos_en_bq.add(nombre_archivo)
+            
+            titulo = fila['titulo_llamado_web']
+            if pd.notna(titulo):
+                archivos_en_bq.add(str(titulo).strip())
+                
         return archivos_en_bq
     except Exception as e:
         logging.warning(f"⚠️ Aviso: No se pudo leer el historial: {e}")
@@ -156,7 +164,7 @@ def orquestador():
                 registrar_estado_scraper(nombre_portal, "OK", "Usa carpeta de Drive") 
                 continue
 
-            # ... (AQUÍ SIGUE EL RESTO DE TU CÓDIGO NORMAL: Evaluando X documentos...) ...
+            
 
             logging.info(f"🔍 Evaluando {len(enlaces)} documentos encontrados en {nombre_portal}...")
             planes_detectados = []
