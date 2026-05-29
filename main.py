@@ -139,6 +139,8 @@ def orquestador():
 
             if not enlaces: 
                 logging.info(f"⏭️ No se obtuvieron datos en {nombre_portal}. Saltando al siguiente portal...")
+                # 👇 Reportos antes de saltar
+                registrar_estado_scraper(nombre_portal, "OK", "Sin datos nuevos o error interno del scraper") 
                 continue
 
             link_drive = next((l for l in enlaces if "drive.google.com" in l), None)
@@ -149,7 +151,12 @@ def orquestador():
                     archivos_conocidos.add(titulo_web)
                 else:
                     print(f"✅ La carpeta de Drive de {nombre_portal} ya fue notificada. Todo al día.")
+                
+                # 👇 Reportos antes de saltar
+                registrar_estado_scraper(nombre_portal, "OK", "Usa carpeta de Drive") 
                 continue
+
+            # ... (AQUÍ SIGUE EL RESTO DE TU CÓDIGO NORMAL: Evaluando X documentos...) ...
 
             logging.info(f"🔍 Evaluando {len(enlaces)} documentos encontrados en {nombre_portal}...")
             planes_detectados = []
