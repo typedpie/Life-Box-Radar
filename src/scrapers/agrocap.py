@@ -10,7 +10,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 class AgrocapScraperSelenium:
     def __init__(self):
-        self.url_principal = "https://www.agrocap.cl/webid/?page_id=292" #2" 
+        self.url_principal = "https://www.agrocap.cl/webid/?page_id=2922" 
         
         self.opciones = Options()
         self.opciones.page_load_strategy = 'eager'

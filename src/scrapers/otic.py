@@ -32,7 +32,7 @@ class OticScraperSelenium:
         logging.info(f"Iniciando exploración en OTIC: {self.url}")
         
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.opciones)
-        driver.set_page_lead_timeout(30)
+        driver.set_page_load_timeout(30)
         enlaces = set()
         titulo_encontrado = f"Llamado Licitación OTIC {anio_actual}" 
 

@@ -28,7 +28,7 @@ class ProAconcaguaScraperSelenium:
         logging.info(f"Iniciando exploración en Pro Aconcagua: {self.url}")
         
         driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=self.opciones)
-        driver.set_page_load_timeoutt(30)
+        driver.set_page_load_timeout(30)
         enlaces = set()
         titulo_encontrado = f"Llamado Licitación Pro Aconcagua {anio_actual}"
 
