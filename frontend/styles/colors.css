@@ -1,0 +1,40 @@
+/* Color Palette */
+:root {
+    /* Primary Colors */
+    --color-primary: #4A90E2;
+    --color-primary-dark: #357ABD;
+    --color-primary-light: #7BA9E8;
+    
+    /* Secondary Colors */
+    --color-accent: #F5A623;
+    --color-accent-dark: #D68910;
+    --color-accent-light: #F8B854;
+    
+    /* Status Colors */
+    --color-success: #28a745;
+    --color-error: #dc3545;
+    --color-warning: #ffc107;
+    --color-info: #17a2b8;
+    
+    /* Neutral Colors */
+    --color-text-primary: #2c3e50;
+    --color-text-secondary: #7f8c8d;
+    --color-text-light: #ecf0f1;
+    
+    /* Background Colors */
+    --color-bg-light: #f5f7fa;
+    --color-bg-dark: #2c3e50;
+    --color-bg-card: #ffffff;
+    
+    /* Border Colors */
+    --color-border-light: #e1e8ed;
+    --color-border-dark: #bdc3c7;
+}
+
+/* Dark Mode Override */
+[data-theme="dark"] {
+    --color-bg-light: #1a202c;
+    --color-bg-card: #2d3748;
+    --color-text-primary: #e2e8f0;
+    --color-text-secondary: #a0aec0;
+}

@@ -1,0 +1,7 @@
+﻿pandas
+pandas-gbq
+google-auth
+google-cloud-bigquery
+PyPDF2
+selenium
+requests

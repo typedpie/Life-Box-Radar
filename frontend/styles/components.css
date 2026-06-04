@@ -1,0 +1,182 @@
+/* Component Styles - Cards, Buttons, Forms */
+
+/* ========== DASHBOARD CARDS ========== */
+.dashboard-card {
+    background-color: var(--secondary-background-color);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    margin-bottom: 20px;
+    border: 1px solid rgba(150, 150, 150, 0.15);
+    transition: all 0.3s ease;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.card-title {
+    color: var(--text-color);
+    opacity: 0.75;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+}
+
+.card-value {
+    font-size: 36px !important;
+    font-weight: 700 !important;
+    margin: 0;
+}
+
+.val-blue {
+    color: #4A90E2 !important;
+}
+
+.val-orange {
+    color: #F5A623 !important;
+}
+
+.val-green {
+    color: #28a745 !important;
+}
+
+.val-red {
+    color: #dc3545 !important;
+}
+
+/* ========== HEALTH CARDS ========== */
+.health-card {
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-style: solid;
+    background-color: var(--secondary-background-color);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease;
+}
+
+.health-card:hover {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.health-ok {
+    border-color: #28a745;
+    border-left-width: 8px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+}
+
+.health-error {
+    border-color: #dc3545;
+    border-left-width: 8px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+}
+
+.health-title {
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 5px;
+}
+
+.health-status-ok {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.health-status-error {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.health-msg {
+    font-size: 13px;
+    opacity: 0.8;
+    margin-top: 5px;
+    min-height: 40px;
+}
+
+.health-date {
+    font-size: 11px;
+    opacity: 0.6;
+    text-align: right;
+    margin-top: 10px;
+}
+
+/* ========== BADGES ========== */
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.badge-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.badge-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.badge-info {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+/* ========== FILTERS ========== */
+.filter-section {
+    background-color: var(--secondary-background-color);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.filter-label {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+/* ========== DATA TABLES ========== */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th {
+    background-color: var(--secondary-background-color);
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.data-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.data-table tr:hover {
+    background-color: rgba(74, 144, 226, 0.05);
+}
