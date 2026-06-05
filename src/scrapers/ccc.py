@@ -17,6 +17,7 @@ class CccScraperSelenium:
         
         self.opciones = Options()
         self.opciones.page_load_strategy = 'eager'
+        self.opciones.add_argument("--disable-gpu")
         self.opciones.add_argument("--headless=new")
         self.opciones.add_argument("--no-sandbox")
         self.opciones.add_argument("--disable-dev-shm-usage")
