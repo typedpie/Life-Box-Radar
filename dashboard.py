@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import pandas_gbq
 import os
 from google.oauth2 import service_account
 from google.cloud import bigquery
@@ -111,7 +112,7 @@ def cargar_oportunidades_bq():
             WHERE estado = 'Activo' OR estado IS NULL
             ORDER BY fecha_deteccion DESC
         """
-        df = pd.read_gbq(query_select, project_id=ID_PROYECTO, credentials=credenciales)
+        df = pandas_gbq.read_gbq(query_select, project_id=ID_PROYECTO, credentials=credenciales)
         
         if not df.empty:
             df.columns = ['Detectado el', 'Llamado', 'OTIC', 'Gatillo', 'Curso', 'Región', 'Comuna', 'Modalidad', 'Alumnos', 'Horas', 'Link Excel']
@@ -136,7 +137,7 @@ def cargar_salud_scrapers():
             )
             WHERE rn = 1
         """
-        df_salud = pd.read_gbq(query_salud, project_id=ID_PROYECTO, credentials=credenciales)
+        df_salud = pandas_gbq.read_gbq(query_salud, project_id=ID_PROYECTO, credentials=credenciales)
         return df_salud
     except Exception as e:
         # Falla silenciosamente si la tabla aún no existe (antes de que ocurra el primer escaneo)
