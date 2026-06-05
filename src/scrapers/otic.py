@@ -9,6 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import TimeoutException, WebDriverException
 
 class OticScraperSelenium:
     def __init__(self):
@@ -74,7 +75,7 @@ class OticScraperSelenium:
                     except Exception:
                         continue
                 
-                # --- SELECCIÓN DEL GANADOR ---
+                # --- SELECCIÓN ---
                 if acordeones_validos:
                     # Encontrar el número de llamado más reciente
                     max_llamado = max(item["num_llamado"] for item in acordeones_validos)
@@ -107,12 +108,27 @@ class OticScraperSelenium:
                                 enlaces.add(href)
                                 
                     logging.info(f"Extracción exitosa: {len(enlaces)} documentos encontrados para el año {anio_objetivo} (Llamado #{max_llamado}).")
-                    break # 🎯 Rompemos el ciclo de años porque ya encontramos data
+                    break # rompo el ciclo 
                 else:
                     logging.info(f"Aún no hay licitaciones publicadas para el año {anio_objetivo} en OTIC.")
 
+            
+            if not enlaces:
+                raise Exception("Cambio de diseño: No se encontraron los acordeones de los años recientes en OTIC.")
+
+        # bloque de errores
+        except TimeoutException:
+            logging.error("Timeout en OTIC")
+            raise Exception("La página web de OTIC está caída o demasiado lenta (Timeout).")
+        except WebDriverException:
+            logging.error("Error de WebDriver en OTIC")
+            raise Exception("No se pudo acceder a la página de OTIC. Revisa la URL.")
         except Exception as e:
             logging.error(f"Error explorando la página de OTIC: {e}")
+            if "Cambio de diseño" in str(e):
+                raise e
+            else:
+                raise Exception("Error inesperado en OTIC. Revisa los logs de la consola.")
         finally:
             driver.quit()
 

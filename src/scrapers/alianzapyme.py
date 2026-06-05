@@ -7,6 +7,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import TimeoutException, WebDriverException 
 
 class AlianzaPymeScraperSelenium:
     def __init__(self):
@@ -18,7 +19,6 @@ class AlianzaPymeScraperSelenium:
         self.opciones.add_argument("--no-sandbox")
         self.opciones.add_argument("--disable-dev-shm-usage")
         self.opciones.add_argument("--window-size=1920,1080")
-
 
     def fetch_tender_links(self):
         
@@ -108,10 +108,26 @@ class AlianzaPymeScraperSelenium:
                     break # se rompe el ciclo si se encuentra una paquete de licitaciones
 
             enlaces = set(enlaces_unicos.values())
+            
+    
+            if not enlaces:
+                raise Exception("Cambio de diseño: No se encontraron bloques de años o la estructura de la página cambió.")
+            
             logging.info(f"Extracción milimétrica exitosa: {len(enlaces)} documentos únicos en total.")
 
+        #bloque de errores
+        except TimeoutException:
+            logging.error("Timeout en Alianza Pyme")
+            raise Exception("La página web de Alianza Pyme está caída o demasiado lenta (Timeout).")
+        except WebDriverException:
+            logging.error("Error de WebDriver en Alianza Pyme")
+            raise Exception("No se pudo acceder a la página de Alianza Pyme. Revisa la URL.")
         except Exception as e:
             logging.error(f"Error explorando la página de Alianza Pyme: {e}")
+            if "Cambio de diseño" in str(e):
+                raise e
+            else:
+                raise Exception("Error inesperado en Alianza Pyme. Revisa los logs de la consola.")
         finally:
             driver.quit()
 

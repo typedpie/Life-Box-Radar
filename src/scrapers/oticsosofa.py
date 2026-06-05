@@ -7,6 +7,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import TimeoutException, WebDriverException 
 
 class OticSofofaScraperSelenium:
     def __init__(self):
@@ -40,7 +41,7 @@ class OticSofofaScraperSelenium:
 
             logging.info(f"Buscando llamados del {anio_actual} (Plan B: {anio_anterior})...")
 
-            # script con la fase 2 por si la 2 falla"
+            # script con la fase 2 por si la 1 falla"
             script_js = """
                 const anioActual = arguments[0];
                 const anioAnterior = arguments[1];
@@ -113,9 +114,12 @@ class OticSofofaScraperSelenium:
 
             if resultado_js and "error" in resultado_js:
                 logging.warning(f"⚠️ {resultado_js['error']}")
+                # error si cambia diseño 
+                raise Exception(f"Cambio de diseño: {resultado_js['error']}")
+                
             elif resultado_js and "links" in resultado_js:
                 nombre_llamado = resultado_js["llamado"]
-                anio_detectado = resultado_js["anio_detectado"] # Recibimos si usó 2026 o 2025
+                anio_detectado = resultado_js["anio_detectado"] 
                 
                 # Actualizo el titulo con el año donde s encontro 
                 titulo_encontrado = f"OTIC Sofofa - {nombre_llamado} ({anio_detectado})"
@@ -130,10 +134,26 @@ class OticSofofaScraperSelenium:
                             enlaces_unicos[url_base] = href_limpio
 
             enlaces = set(enlaces_unicos.values())
+            
+            # error si se extraen 0 ducumentos
+            if not enlaces:
+                raise Exception("Cambio de diseño: No se encontraron documentos válidos en OTIC Sofofa.")
+                
             logging.info(f"Extracción exitosa: {len(enlaces)} documentos únicos capturados en Sofofa.")
 
+        #bloque de errores 
+        except TimeoutException:
+            logging.error("Timeout en OTIC Sofofa")
+            raise Exception("La página web de OTIC Sofofa está caída o demasiado lenta (Timeout).")
+        except WebDriverException:
+            logging.error("Error de WebDriver en OTIC Sofofa")
+            raise Exception("No se pudo acceder a la página de OTIC Sofofa. Revisa la URL.")
         except Exception as e:
             logging.error(f"Error explorando la página de OTIC Sofofa: {e}")
+            if "Cambio de diseño" in str(e):
+                raise e
+            else:
+                raise Exception("Error inesperado en OTIC Sofofa. Revisa los logs de la consola.")
         finally:
             driver.quit()
 

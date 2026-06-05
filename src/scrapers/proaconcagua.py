@@ -8,6 +8,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import TimeoutException, WebDriverException 
 
 class ProAconcaguaScraperSelenium:
     def __init__(self):
@@ -68,11 +69,23 @@ class ProAconcaguaScraperSelenium:
                 else:
                     logging.info(f"No se encontró el título para el año {anio_objetivo}.")
 
+        
             if not enlaces:
-                logging.info(f"Aún no hay licitaciones publicadas para los años {anio_actual} ni {anio_anterior} en Pro Aconcagua.")
+                raise Exception("Cambio de diseño: No se encontró el título o el botón de descarga en Pro Aconcagua.")
 
+        #bloque errores
+        except TimeoutException:
+            logging.error("Timeout en Pro Aconcagua")
+            raise Exception("La página web de Pro Aconcagua está caída o demasiado lenta (Timeout).")
+        except WebDriverException:
+            logging.error("Error de WebDriver en Pro Aconcagua")
+            raise Exception("No se pudo acceder a la página de Pro Aconcagua. Revisa la URL.")
         except Exception as e:
-            logging.error(f"Error explorando la página: {e}")
+            logging.error(f"Error explorando la página de Pro Aconcagua: {e}")
+            if "Cambio de diseño" in str(e):
+                raise e
+            else:
+                raise Exception("Error inesperado en Pro Aconcagua. Revisa los logs de la consola.")
         finally:
             driver.quit()
 

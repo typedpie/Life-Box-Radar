@@ -7,6 +7,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import TimeoutException, WebDriverException
 
 class AgrocapScraperSelenium:
     def __init__(self):
@@ -150,10 +151,21 @@ class AgrocapScraperSelenium:
 
             except Exception as e_boveda:
                 logging.error(f"Error procesando la bóveda: {e_boveda}")
+                raise Exception("Cambio de diseño en la bóveda: No se pudieron extraer los enlaces.")
+        
+        except TimeoutException:
+            logging.error("Timeoout en agrocap")
+            raise Exception("La página web de Agrocap está caída o demasiado lenta (Timeout).")
+        except WebDriverException:
+            logging.error("Error de Webdriver en agrocap")
+            raise Exception("No se pudo acceder al enlace principal de Agrocap. Revisa la URL.")
 
         except Exception as e:
             logging.error(f"Error explorando la página principal de Agrocap: {e}")
-            raise e
+            if "Error 404" in str(e):
+                raise e
+            else:
+                raise Exception("Error inesperado en Agrocap. Revisa los logs de la consola.")
         finally:
             driver.quit()
 

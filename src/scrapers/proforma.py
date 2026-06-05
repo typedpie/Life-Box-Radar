@@ -6,6 +6,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
+from selenium.common.exceptions import TimeoutException, WebDriverException 
 
 
 # Configuración básica de Logging
@@ -95,11 +96,25 @@ class ProformaScraperSelenium:
                 else:
                     logging.info(f"No se encontraron acordeones para el año {anio_objetivo}.")
 
+            
+            if not enlaces_encontrados:
+                raise Exception("Cambio de diseño: No se encontraron documentos válidos ni acordeones en Proforma.")
+
             return enlaces_encontrados, titulo_acordeon_encontrado
 
+        #bloque errores
+        except TimeoutException:
+            logging.error("Timeout en Proforma")
+            raise Exception("La página web de Proforma está caída o demasiado lenta (Timeout).")
+        except WebDriverException:
+            logging.error("Error de WebDriver en Proforma")
+            raise Exception("No se pudo acceder a la página de Proforma. Revisa la URL.")
         except Exception as e:
-            logging.error(f"Error durante la automatización: {e}")
-            return set(), titulo_acordeon_encontrado
+            logging.error(f"Error explorando la página de Proforma: {e}")
+            if "Cambio de diseño" in str(e):
+                raise e
+            else:
+                raise Exception("Error inesperado en Proforma. Revisa los logs de la consola.")
 
         finally:
             logging.info("Cerrando el navegador automatizado.")

@@ -13,6 +13,9 @@ from src.scrapers.agrocap import AgrocapScraperSelenium
 from src.scrapers.banotic import BanoticScraperSelenium 
 from src.scrapers.alianzapyme import AlianzaPymeScraperSelenium 
 from src.scrapers.oticsosofa import OticSofofaScraperSelenium 
+from src.scrapers.francochileno import FrancoChilenoScraperSelenium
+from src.scrapers.winesofchile import ChileVinosScraperSelenium
+from src.scrapers.ccc import CccScraperSelenium
 from src.utils.analizador_inteligente import AnalizadorLicitaciones
 from src.utils.document_parser import DocumentAnalyzer
 from src.database.bq_client import BigQueryClient
@@ -134,7 +137,10 @@ def orquestador():
         ("Agrocap", AgrocapScraperSelenium()), 
         ("Banotic", BanoticScraperSelenium()),
         ("Alianza Pyme", AlianzaPymeScraperSelenium()),
-        ("OTIC Sofofa", OticSofofaScraperSelenium())
+        ("OTIC Sofofa", OticSofofaScraperSelenium()),
+        ("CCC", CccScraperSelenium()),
+        ("Franco Chileno", FrancoChilenoScraperSelenium()),
+        ("Wines of Chile", ChileVinosScraperSelenium())
     ]
 
     for nombre_portal, scraper in scrapers:
@@ -186,14 +192,23 @@ def orquestador():
             planes_detectados = []
             links_pdfs = [] 
             
-            for link in enlaces:
-                nombre = unquote(link.split('/')[-1].split('?')[0].strip())
-                # Clasificar Excels
+            for link_original in enlaces:
+                # 1. Limpiar link
+                link_limpio = link_original.split('#')[0] 
+                
+                # 2. saca nombre inyectado
+                if "#" in link_original:
+                    nombre = unquote(link_original.split('#')[-1].strip())
+                else:
+                    nombre = unquote(link_original.split('/')[-1].split('?')[0].strip())
+                
+                # 3. Clasifica excel usando nombre
                 if "EXCEL CLAVE" in analizador.clasificar_archivo(nombre):
-                    planes_detectados.append((nombre, link))
-                # Clasificar PDFs
-                elif link.lower().endswith('.pdf') or '.pdf?' in link.lower():
-                    links_pdfs.append((nombre, link))
+                    planes_detectados.append((nombre, link_limpio))
+                
+                # 4. Clasificar PDFs
+                elif nombre.lower().endswith('.pdf') or '.pdf?' in nombre.lower():
+                    links_pdfs.append((nombre, link_limpio))
             
             if planes_detectados:
                 nombres_planes = [p[0] for p in planes_detectados]

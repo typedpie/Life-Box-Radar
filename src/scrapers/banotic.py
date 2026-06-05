@@ -6,6 +6,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import TimeoutException, WebDriverException 
 
 class BanoticScraperSelenium:
     def __init__(self):
@@ -55,9 +56,9 @@ class BanoticScraperSelenium:
                     logging.info(f"No se encontró el botón para {anio_objetivo}.")
                     continue 
 
+            
             if not url_subpagina:
-                logging.info(f"Aún no existe el portal para los años {anio_actual} ni {anio_anterior} en Banotic.")
-                return enlaces, titulo_encontrado 
+                raise Exception("Cambio de diseño: No se encontró el botón de acceso para los años recientes en Banotic.")
 
             # --- FASE 2: DETECCIÓN DE PESTAÑAS Y EXTRACCIÓN (SOLO LA MÁS RECIENTE) ---
             driver.get(url_subpagina)
@@ -123,9 +124,22 @@ class BanoticScraperSelenium:
 
             except Exception as e_boveda:
                 logging.error(f"Error procesando la bóveda de Banotic: {e_boveda}")
+                # 🚀 NUEVO: Grito al Orquestador si la fase 2 falla
+                raise Exception("Cambio de diseño en la bóveda: No se pudieron extraer los enlaces de los documentos.")
 
+        # bloque de errores
+        except TimeoutException:
+            logging.error("Timeout en Banotic")
+            raise Exception("La página web de Banotic está caída o demasiado lenta (Timeout).")
+        except WebDriverException:
+            logging.error("Error de WebDriver en Banotic")
+            raise Exception("No se pudo acceder a la página de Banotic. Revisa la URL.")
         except Exception as e:
             logging.error(f"Error explorando la página principal de Banotic: {e}")
+            if "Cambio de diseño" in str(e):
+                raise e
+            else:
+                raise Exception("Error inesperado en Banotic. Revisa los logs de la consola.")
         finally:
             driver.quit()
 
