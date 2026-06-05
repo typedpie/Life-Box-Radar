@@ -1,12 +1,19 @@
-"""
-Backend entry point: Simplified main script orchestrating scraping.
-"""
 import sys
-import os
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
+def find_src_dir(start: Path) -> Path:
+    """Busca upward un directorio 'src' desde start hasta la raíz."""
+    cur = start.resolve()
+    for parent in [cur] + list(cur.parents):
+        candidate = parent / "src"
+        if candidate.is_dir():
+            return candidate
+    return None
+
+src_dir = find_src_dir(Path(__file__).parent)
+if not src_dir:
+    raise RuntimeError("No se encontró el directorio 'src' en la jerarquía de carpetas.")
+sys.path.insert(0, str(src_dir))
 
 from core.config import validar_config
 from services.scraper_service import ScraperService
