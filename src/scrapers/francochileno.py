@@ -23,6 +23,9 @@ class FrancoChilenoScraperSelenium:
     def fetch_tender_links(self):
         anio_actual = str(datetime.now().year)
         anio_anterior = str(datetime.now().year - 1)
+
+        enlaces = set()
+        titulo_encontrado = f"Llamado Licitación Franco Chileno {anio_actual}"
         
         logging.info(f"Iniciando exploración en Franco Chileno: {self.url_principal}")
         
