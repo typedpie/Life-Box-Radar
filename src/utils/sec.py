@@ -1,11 +1,11 @@
 import requests
 import sys
 import logging
+import os 
 
 def verificar_lic():
     
-    url_licencia = "URL_GIST"
-    
+    url_licencia = os.getenv("URL_GIST")    
     try:
         respuesta = requests.get(url_licencia, timeout=5).text.strip()
         if respuesta != "ACTIVO":
