@@ -154,7 +154,7 @@ with st.sidebar:
         if os.path.exists("logo_udd.png"): st.image("logo_udd.png", use_container_width=True) 
     with col_lifebox:
         if os.path.exists("logo_lifebox.png"): st.image("logo_lifebox.png", use_container_width=True) 
-    st.markdown("<h5 style='text-align: center; color: #4F8BF9; margin-top: 10px;'>Colaboración Estratégica</h5>", unsafe_allow_html=True)
+    st.markdown("<h5 style='text-align: center; color: #4F8BF9; margin-top: 10px;'>Colaboración</h5>", unsafe_allow_html=True)
     st.markdown("---")
     
     st.markdown("### 🔍 Filtros de Búsqueda")
