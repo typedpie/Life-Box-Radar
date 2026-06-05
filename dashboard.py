@@ -20,7 +20,7 @@ st.set_page_config(
 # --- ACTIVAR EL "LIVE VIEW" ---
 st_autorefresh(interval=300000, limit=None, key="autorefresh_dashboard")
 
-# 2. INYECCIÓN DE CSS (Nuevos estilos para tarjetas de salud agregados)
+# 2. INYECCIÓN DE CSS 
 st.markdown("""
 <style>
     /* Estilos KPIs Principales */
@@ -140,7 +140,7 @@ def cargar_salud_scrapers():
         df_salud = pandas_gbq.read_gbq(query_salud, project_id=ID_PROYECTO, credentials=credenciales)
         return df_salud
     except Exception as e:
-        # Falla silenciosamente si la tabla aún no existe (antes de que ocurra el primer escaneo)
+        
         return pd.DataFrame()
 
 df_base = cargar_oportunidades_bq()
@@ -251,7 +251,7 @@ with tab_principal:
                         st.cache_data.clear()
                         st.rerun()
 
-    # --- PAPELERA DE RECICLAJE ---
+    # --- PAPELERA ---
     st.markdown("---")
     if st.toggle("🗑️ Abrir Papelera de Reciclaje"):
         st.markdown("#### Documentos Descartados")
@@ -309,7 +309,7 @@ with tab_salud:
                 clase_texto = "health-status-ok"
                 mensaje_mostrar = "" 
             else:
-                # 🛑 ESTILO DE ERROR VISUAL ESTILO "PÁGINA NO ENCONTRADA"
+                # 
                 css_clase = "health-error"
                 icono = "⚠️"
                 texto_estado = "FALLO CRÍTICO"

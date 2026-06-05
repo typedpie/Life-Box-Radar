@@ -27,7 +27,7 @@ def obtener_archivos_conocidos():
     logging.info("🧠 Consultando memoria en BigQuery...")
     try:
         credenciales = service_account.Credentials.from_service_account_file("credenciales_gcp.json")
-        # NUEVO: Ahora extraemos también el título web de BigQuery
+        
         query = "SELECT DISTINCT link_documento, titulo_llamado_web FROM `proyecto-life-box-licitaciones.licitaciones.oportunidades`"
         df_historial = pd.read_gbq(query, project_id="proyecto-life-box-licitaciones", credentials=credenciales)
         
@@ -56,7 +56,7 @@ def enviar_notificacion(titulo, cantidad, portal, link_especial=None):
         logging.error("⚠️ Faltan las credenciales de Telegram en las variables de entorno.")
         return
 
-    # Uso etiquetas HTML (<b> para negrita, <i> para cursiva) 
+
     # Esto evita que los guiones bajos en los links o títulos rompan Telegram
     if link_especial: 
         contenido = f"🚨 <b>¡NUEVA PUBLICACIÓN EN {portal.upper()}!</b> 🚨\nProceso: <b>{titulo}</b>\n⚠️ <i>Este portal usa Drive. Revisar manualmente:</i> {link_especial}"
@@ -67,7 +67,7 @@ def enviar_notificacion(titulo, cantidad, portal, link_especial=None):
     payload = {
         "chat_id": CHAT_ID,
         "text": contenido,
-        "parse_mode": "HTML"  # <--- CAMBIADO A HTML
+        "parse_mode": "HTML"  
     }
     
     try:
@@ -116,7 +116,7 @@ def registrar_estado_scraper(portal, estado, mensaje="Funcionando correctamente"
     }])
     
     try:
-        # Esto creará/agregará a la tabla 'estado_scrapers'
+        
         pd.io.gbq.to_gbq(
             df_estado, 
             destination_table='licitaciones.estado_scrapers', 
@@ -150,12 +150,12 @@ def orquestador():
         logging.info(f"🚀 PATRULLANDO: {nombre_portal}")
         print("="*50)
         
-        try: # 🛡️ <--- INICIO DEL BLINDAJE
+        try: 
             enlaces, titulo_web = scraper.fetch_tender_links()
 
             if not enlaces: 
                 logging.info(f"⏭️ No se obtuvieron datos en {nombre_portal}. Saltando al siguiente portal...")
-                # 👇 Reportos antes de saltar
+                #  Reportos 
                 registrar_estado_scraper(nombre_portal, "OK", "Sin datos nuevos o error interno del scraper") 
                 continue
 
@@ -166,7 +166,7 @@ def orquestador():
                     enviar_notificacion(titulo_web, 0, nombre_portal, link_drive)
                     archivos_conocidos.add(titulo_web)
                     
-                    # 👇 NUEVO: Inyectar "fila fantasma" en BigQuery para curar la amnesia
+                    
                     df_drive = pd.DataFrame([{
                         "palabra_clave": "N/A", "curso": "Carpeta de Drive (Aviso ya enviado)", 
                         "region": "N/A", "comuna": "N/A", "cupos": "0", "horas": "0", "modalidad": "N/A", "fila": 0
@@ -180,7 +180,7 @@ def orquestador():
 
                     cliente = BigQueryClient("proyecto-life-box-licitaciones", "licitaciones", "oportunidades", "credenciales_gcp.json")
                     cliente.inyectar_datos(df_drive)
-                    # 👆 FIN DEL BLOQUE NUEVO
+                    
                     
                 else:
                     print(f"✅ La carpeta de Drive de {nombre_portal} ya fue notificada. Todo al día.")
@@ -208,7 +208,7 @@ def orquestador():
                 if "EXCEL CLAVE" in analizador.clasificar_archivo(nombre):
                     planes_detectados.append((nombre, link_limpio))
                 
-                # 4. Clasificar PDFs
+                # 4. ClasificarRRR PDFs
                 elif nombre.lower().endswith('.pdf') or '.pdf?' in nombre.lower():
                     links_pdfs.append((nombre, link_limpio))
             
@@ -230,14 +230,14 @@ def orquestador():
                     estado_licitacion = "Activo"
                     url_pdf_fecha = None
                     
-                    # 1. Búsqueda de ALTA PRIORIDAD
+                    # 1. Búsqued PRIORIDAD
                     for nombre_pdf, link_pdf in links_pdfs:
                         nom_bajo = nombre_pdf.lower()
                         if any(x in nom_bajo for x in ['cronograma', 'anexo 1', 'anexo-1', 'anexo1', 'anexo n°1', 'calendario']):
                             url_pdf_fecha = link_pdf
                             break
                     
-                    # 2. Búsqueda de MEDIA PRIORIDAD
+                    # 2. Búsqueda PRIORIDAD menor
                     if not url_pdf_fecha:
                         for nombre_pdf, link_pdf in links_pdfs:
                             nom_bajo = nombre_pdf.lower()
@@ -246,7 +246,7 @@ def orquestador():
                                     url_pdf_fecha = link_pdf
                                     break
                     
-                    # 3. Fallback
+                    
                     if not url_pdf_fecha and links_pdfs:
                         url_pdf_fecha = links_pdfs[0][1]
                         
@@ -269,10 +269,10 @@ def orquestador():
                                         print(f"✅ LICITACIÓN VIGENTE: Cierra el {fecha_cierre}.")
                                 except Exception as e:
                                     logging.warning(f"No se pudo calcular el vencimiento para la fecha: {fecha_cierre}")
-                    # ==========================================
+                    
 
                     # ==========================================
-                    # DECISIÓN: ¿LEEMOS EL EXCEL?
+                    # DECISIÓN: ¿LEo EL EXCEL?
                     # ==========================================
                     if estado_licitacion == "Vencido":
                         print(f"⏭️ AHORRO DE TOKENS: La licitación está vencida. Se descarta la lectura de cursos del Excel de {nombre_portal}.")
@@ -323,11 +323,11 @@ def orquestador():
             registrar_estado_scraper(nombre_portal, "OK")
 
         except Exception as e:
-            # 🛑 <--- LA RED DE SEGURIDAD
+            
             logging.error(f"❌ Falla crítica ejecutando {nombre_portal}: {e}")
             enviar_alerta_error(nombre_portal, e)
             registrar_estado_scraper(nombre_portal, "ERROR", e)
-            continue # Esto le dice al bot que no muera, sino que pase al portal siguiente
+            continue # pasa al siguiente portal-
 
     logging.info("=== PATRULLAJE FINALIZADO EN TODOS LOS PORTALES ===")
 
