@@ -309,13 +309,26 @@ with tab_salud:
                 clase_texto = "health-status-ok"
                 mensaje_mostrar = "" 
             else:
+                # 🛑 ESTILO DE ERROR VISUAL ESTILO "PÁGINA NO ENCONTRADA"
                 css_clase = "health-error"
-                icono = "🔴"
-                texto_estado = "ERROR DE SCRAPER"
+                icono = "⚠️"
+                texto_estado = "FALLO CRÍTICO"
                 clase_texto = "health-status-error"
-                mensaje_mostrar = f"Detalle técnico: {str(mensaje)[:100]}..." # Truncar error si es muy largo
+                mensaje_mostrar = f"Detalle: {str(mensaje)[:100]}..."
+                
+                
+                if portal == "SISTEMA CORE":
+                    st.error("### 🚫 ACCESO INVALIDO")
+                    st.markdown("""
+                        <div style="background-color: #fee2e2; border-left: 6px solid #ef4444; padding: 20px; border-radius: 5px;">
+                            <h2 style="color: #991b1b;">Error 403: Licencia no válida</h2>
+                            <p style="color: #991b1b;">Servicio con problema. 
+                            Por favor, contactar al +56989299709 o tomasgonzalez2801@gmail.com.</p>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    st.stop() 
 
-            # Ensamblar la tarjeta en HTML puro
+            
             tarjeta_html = f"""
             <div class="health-card {css_clase}">
                 <div class="health-title">{portal}</div>
@@ -325,6 +338,6 @@ with tab_salud:
             </div>
             """
             
-            # Repartir las tarjetas secuencialmente en las 3 columnas
+            
             columna_actual = columnas[indice % 3]
             columna_actual.markdown(tarjeta_html, unsafe_allow_html=True)
