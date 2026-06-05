@@ -6,6 +6,7 @@ from urllib.parse import unquote
 from google.oauth2 import service_account
 
 # Importe de scrappers
+from src.utils.sec import verificar_lic
 from src.scrapers.proforma import ProformaScraperSelenium 
 from src.scrapers.otic import OticScraperSelenium 
 from src.scrapers.proaconcagua import ProAconcaguaScraperSelenium 
@@ -126,6 +127,7 @@ def registrar_estado_scraper(portal, estado, mensaje="Funcionando correctamente"
         logging.error(f"Error guardando el estado en BigQuery: {e}")
 
 def orquestador():
+    verificar_lic()
     logging.info("=== INICIANDO SISTEMA DE VIGILANCIA MULTI-PORTAL ===")
     archivos_conocidos = obtener_archivos_conocidos()
     analizador = AnalizadorLicitaciones()
