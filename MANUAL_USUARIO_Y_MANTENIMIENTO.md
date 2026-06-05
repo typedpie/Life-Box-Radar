@@ -489,26 +489,50 @@ pip install -r requirements.txt
 
 ### 3. Configuración
 
-**Crear archivo `.env` en `backend/`:**
+**Crear archivo `.env` en la raíz del proyecto:**
+1. Copia el archivo de ejemplo:
 ```bash
-# Google Cloud
-GCP_PROJECT_ID=tu-proyecto-id
-GCP_CREDENTIALS_PATH=credenciales_gcp.json
-
+copy .env.example .env
+```
+2. Edita `.env` y reemplaza los valores:
+```text
 # Telegram
-TELEGRAM_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
-TELEGRAM_CHAT_ID=987654321
+TELEGRAM_TOKEN=tu_token_de_bot
+TELEGRAM_CHAT_ID=tu_chat_id
+
+# Google Cloud
+GCP_PROJECT_ID=proyecto-life-box-licitaciones
+GCP_CREDENTIALS_PATH=credenciales_gcp.json
+GOOGLE_APPLICATION_CREDENTIALS=credenciales_gcp.json
 
 # Opcionales
 DEBUG=False
 LOG_LEVEL=INFO
 ```
 
-**Configurar credenciales GCP:**
-1. Ve a Google Cloud Console
-2. Crea una clave de servicio JSON
-3. Descárgala como `credenciales_gcp.json`
-4. Colócala en la carpeta `backend/`
+**Obtener credenciales nuevas**
+
+1. **Telegram**
+   - Abre Telegram y crea un bot con `@BotFather`
+   - Envía `/newbot` y sigue los pasos
+   - Copia el token que te entregue `BotFather`
+   - Recupera tu `TELEGRAM_CHAT_ID` enviando un mensaje al bot y consultando:
+     ```bash
+     curl "https://api.telegram.org/bot<token>/getUpdates"
+     ```
+   - Busca el campo `chat.id` en la respuesta JSON
+
+2. **Google Cloud / BigQuery**
+   - Ve a Google Cloud Console: https://console.cloud.google.com/
+   - Crea o selecciona el proyecto `proyecto-life-box-licitaciones`
+   - Abre IAM & Admin > Service Accounts
+   - Crea una nueva cuenta de servicio
+   - Asigna el rol `BigQuery User` o `BigQuery Data Editor`
+   - Genera una clave JSON
+   - Descarga el archivo y renómbralo a `credenciales_gcp.json`
+   - Mueve el archivo a la raíz del proyecto
+
+> Asegúrate de que `.env` y `credenciales_gcp.json` estén en `.gitignore` para no subirlos a Git.
 
 ### 4. Primer Ejecutar
 

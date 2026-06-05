@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Google Cloud
-GCP_PROJECT_ID = "proyecto-life-box-licitaciones"
-GCP_CREDENTIALS_PATH = "credenciales_gcp.json"
+GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "proyecto-life-box-licitaciones")
+GCP_CREDENTIALS_PATH = os.getenv("GCP_CREDENTIALS_PATH", "credenciales_gcp.json")
 
 # Streamlit
 STREAMLIT_TITLE = "Radar de Licitaciones - LifeBox UDD"

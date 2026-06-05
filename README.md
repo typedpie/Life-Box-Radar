@@ -112,16 +112,39 @@ Life-Box-Radar/
 
 ### Variables de Entorno
 
-Crea `.env` en la raíz del proyecto:
+Copia el archivo de ejemplo `.env.example` a `.env` en la raíz del proyecto y completa las credenciales:
 
 ```bash
-# Telegram
+copy .env.example .env
+```
+
+Edita `.env` y reemplaza los valores:
+
+```text
 TELEGRAM_TOKEN=tu_token_de_bot
 TELEGRAM_CHAT_ID=tu_chat_id
-
-# Google Cloud (opcional si usas archivo JSON)
+GCP_PROJECT_ID=proyecto-life-box-licitaciones
+GCP_CREDENTIALS_PATH=credenciales_gcp.json
 GOOGLE_APPLICATION_CREDENTIALS=credenciales_gcp.json
 ```
+
+> No subas `.env` ni `credenciales_gcp.json` al repositorio. Ambos están ignorados en `.gitignore`.
+
+### Obtener credenciales nuevas
+
+1. **Telegram**
+   - Abre Telegram y habla con `@BotFather`
+   - Escribe `/newbot` y sigue las instrucciones
+   - Copia el token que te entrega `BotFather`
+   - Para obtener `TELEGRAM_CHAT_ID`, abre una conversación con tu bot y usa `https://api.telegram.org/bot<token>/getUpdates`
+
+2. **Google Cloud**
+   - Entra a Google Cloud Console: https://console.cloud.google.com/
+   - Ve al proyecto `proyecto-life-box-licitaciones` o crea uno nuevo
+   - Abre IAM & Admin > Service Accounts
+   - Crea una cuenta de servicio con rol `BigQuery User` o `BigQuery Data Editor`
+   - Genera una clave JSON y descárgala como `credenciales_gcp.json`
+   - Guarda el archivo en la raíz del proyecto
 
 ### BigQuery Project
 

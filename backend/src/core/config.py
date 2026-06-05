@@ -10,8 +10,8 @@ load_dotenv()
 # ============================================
 # GOOGLE CLOUD / BIGQUERY
 # ============================================
-GCP_PROJECT_ID = "proyecto-life-box-licitaciones"
-GCP_CREDENTIALS_PATH = "credenciales_gcp.json"
+GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "proyecto-life-box-licitaciones")
+GCP_CREDENTIALS_PATH = os.getenv("GCP_CREDENTIALS_PATH", "credenciales_gcp.json")
 BQ_DATASET = "licitaciones"
 BQ_TABLE_OPORTUNIDADES = "oportunidades"
 BQ_TABLE_ESTADO_SCRAPERS = "estado_scrapers"
