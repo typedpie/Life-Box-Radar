@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from typing import List, Tuple, Any
 
 def find_src_dir(start: Path) -> Path:
     """Busca upward un directorio 'src' desde start hasta la raíz."""
@@ -17,6 +18,7 @@ sys.path.insert(0, str(src_dir))
 
 from core.config import validar_config
 from services.scraper_service import ScraperService
+from utils.logger import get_logger
 
 # Import scrapers
 from scrapers.proforma import ProformaScraperSelenium
@@ -27,8 +29,9 @@ from scrapers.banotic import BanoticScraperSelenium
 from scrapers.alianzapyme import AlianzaPymeScraperSelenium
 from scrapers.oticsosofa import OticSofofaScraperSelenium
 
+logger = get_logger(__name__)
 
-def get_scrapers():
+def get_scrapers() -> List[Tuple[str, Any]]:
     """Initialize all portal scrapers."""
     return [
         ("Proforma", ProformaScraperSelenium()),
@@ -41,14 +44,14 @@ def get_scrapers():
     ]
 
 
-def main():
+def main() -> bool:
     """Execute complete scraping workflow."""
     
     # Validate configuration
     try:
         validar_config()
     except Exception as e:
-        print(f"❌ Configuration error: {e}")
+        logger.error(f"Configuration error: {e}", exc_info=True)
         return False
     
     # Initialize scraper service with scrapers
@@ -57,13 +60,13 @@ def main():
     
     # Execute scraping
     try:
-        print("🚀 Starting scraping process...")
+        logger.info("Starting scraping process...")
         scraper_service.ejecutar()
-        print("✅ Scraping completed successfully")
+        logger.info("Scraping completed successfully")
         return True
     
     except Exception as e:
-        print(f"❌ Error during scraping: {e}")
+        logger.error(f"Error during scraping: {e}", exc_info=True)
         return False
 
 

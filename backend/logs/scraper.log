@@ -1,0 +1,10 @@
+2026-06-06 01:57:13,924 - ERROR - Configuration error: ❌ credenciales_gcp.json not found
+Traceback (most recent call last):
+  File "C:\Users\ignacio.ibanez\Documents\GitHub\Life-Box-Radar\backend\main_new.py", line 52, in main
+    validar_config()
+    ~~~~~~~~~~~~~~^^
+  File "C:\Users\ignacio.ibanez\Documents\GitHub\Life-Box-Radar\backend\src\core\config.py", line 76, in validar_config
+    raise FileNotFoundError(f"❌ {GCP_CREDENTIALS_PATH} not found")
+FileNotFoundError: ❌ credenciales_gcp.json not found
+2026-06-06 03:29:15,837 - INFO - Starting scraping process...
+2026-06-06 03:32:30,788 - INFO - Scraping completed successfully

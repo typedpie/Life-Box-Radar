@@ -17,6 +17,12 @@ BQ_TABLE_OPORTUNIDADES = "oportunidades"
 BQ_TABLE_ESTADO_SCRAPERS = "estado_scrapers"
 
 # ============================================
+# LOCAL DATABASE (SQLite)
+# ============================================
+USE_LOCAL_DB = os.getenv("USE_LOCAL_DB", "True").lower() == "true"
+LOCAL_DB_PATH = os.getenv("LOCAL_DB_PATH", "data/licitaciones.db")
+
+# ============================================
 # TELEGRAM
 # ============================================
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -40,6 +46,27 @@ PORTALES = [
     "OTIC Sofofa"
 ]
 
+FUENTES_LICITACIONES = [
+    "CCC Capacitación",
+    "SENCE Becas Laborales",
+    "OTIC Asimet",
+    "Indupan OTIC",
+    "Banotic",
+    "OTIC",
+    "OTIC Sofofa",
+    "Pro Aconcagua",
+    "Agrocap",
+    "OTIC Alianza Pyme",
+    "CGCI",
+    "ProMaule",
+    "Wines of Chile",
+    "OTIC del Comercio",
+    "Corficap",
+    "OTIC Franco Chileno",
+    "Proforma",
+    "OTIC Camacoes"
+]
+
 # ============================================
 # LOGGING
 # ============================================
@@ -51,7 +78,7 @@ LOG_LEVEL = 'INFO'
 # ============================================
 def validar_config():
     """Validates all required configurations are present and valid."""
-    if not os.path.exists(GCP_CREDENTIALS_PATH):
+    if not USE_LOCAL_DB and not os.path.exists(GCP_CREDENTIALS_PATH):
         raise FileNotFoundError(f"❌ {GCP_CREDENTIALS_PATH} not found")
     
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:

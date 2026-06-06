@@ -6,6 +6,8 @@ import pandas as pd
 
 
 def render_kpi_cards(df_oportunidades, df_vencidas):
+    
+     
     """Display main KPI metrics in four columns."""
     col1, col2, col3, col4 = st.columns(4)
     

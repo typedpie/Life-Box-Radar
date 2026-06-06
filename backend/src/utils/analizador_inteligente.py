@@ -2,6 +2,7 @@ import re
 import logging
 from datetime import datetime
 import pandas as pd
+from typing import List, Optional, Dict, Any
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -95,7 +96,7 @@ class AnalizadorLicitaciones:
             "renovando tu mente", "irl aprendizaje experiencial"
         ]
 
-    def clasificar_archivo(self, nombre_archivo):
+    def clasificar_archivo(self, nombre_archivo: str) -> str:
         """Asigna una categoría al archivo basándose en su nombre."""
         nombre = nombre_archivo.lower()
         
@@ -111,7 +112,7 @@ class AnalizadorLicitaciones:
         else:
             return "Documento General"
 
-    def extraer_fecha_de_nombre(self, nombre_archivo):
+    def extraer_fecha_de_nombre(self, nombre_archivo: str) -> datetime:
         """Busca patrones de fecha como DD-MM-YYYY en el nombre del archivo."""
         patron_fecha = r'(\d{2}-\d{2}-\d{4})'
         match = re.search(patron_fecha, nombre_archivo)
@@ -120,7 +121,7 @@ class AnalizadorLicitaciones:
             return datetime.strptime(fecha_str, "%d-%m-%Y")
         return datetime.min # Si no tiene fecha, le damos la fecha más antigua posible
 
-    def seleccionar_plan_mas_reciente(self, lista_nombres_planes):
+    def seleccionar_plan_mas_reciente(self, lista_nombres_planes: List[str]) -> Optional[str]:
         """Recibe una lista de planes de capacitación y devuelve el más actual."""
         if not lista_nombres_planes:
             return None
@@ -133,7 +134,7 @@ class AnalizadorLicitaciones:
         logging.info(f"Archivo ganador seleccionado: {ganador}")
         return ganador
 
-    def analizar_excel_cursos(self, ruta_excel):
+    def analizar_excel_cursos(self, ruta_excel: str) -> Optional[List[Dict[str, Any]]]:
         """Abre el Excel ganador, lee los cursos y busca las palabras clave."""
         logging.info(f"Analizando cursos en: {ruta_excel}")
         try:

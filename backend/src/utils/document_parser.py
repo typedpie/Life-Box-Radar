@@ -6,11 +6,12 @@ import json
 import time
 import PyPDF2 
 from groq import Groq
+from typing import Optional, List, Dict, Any
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class DocumentAnalyzer:
-    def __init__(self):
+    def __init__(self) -> None:
         # Lee la llave secreta desde GitHub Actions de forma segura
         self.api_key = os.environ.get("GROQ_API_KEY")
         self.client = Groq(api_key=self.api_key) if self.api_key else None
@@ -22,7 +23,7 @@ class DocumentAnalyzer:
         if not os.path.exists(self.temp_dir):
             os.makedirs(self.temp_dir)
 
-    def descargar_archivo(self, url):
+    def descargar_archivo(self, url: str) -> Optional[str]:
         nombre_archivo = url.split('/')[-1].split('?')[0] 
         ruta_local = os.path.join(self.temp_dir, nombre_archivo)
         
@@ -47,7 +48,7 @@ class DocumentAnalyzer:
     # ==========================================
     # FUNCIÓN: EXTRACCIÓN DE FECHA
     # ==========================================
-    def extraer_fecha_pdf(self, ruta_pdf):
+    def extraer_fecha_pdf(self, ruta_pdf: str) -> str:
         if not self.client:
             return "No especificada"
             
@@ -94,8 +95,7 @@ class DocumentAnalyzer:
             logging.error(f"Error extrayendo fecha del PDF {ruta_pdf}: {e}")
             return "No especificada"
 
-    
-    def extraer_lote_con_ia(self, lote_filas):
+    def extraer_lote_con_ia(self, lote_filas: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         texto_batch = ""
         for f in lote_filas:
             texto_batch += f"ID_FILA: {f['id']} | PALABRA_CLAVE: {f['palabra_clave']} | DATOS: {f['texto']}\n"
@@ -214,7 +214,7 @@ class DocumentAnalyzer:
                     
         return []
 
-    def analizar_excel(self, ruta_excel, palabras_clave):
+    def analizar_excel(self, ruta_excel: str, palabras_clave: List[str]) -> List[Dict[str, Any]]:
         if not self.client:
             logging.error("No se encontró GROQ_API_KEY. Asegúrate de que el Secret de GitHub esté configurado.")
             return []

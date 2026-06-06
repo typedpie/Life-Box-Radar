@@ -14,13 +14,15 @@ sys.path.insert(0, str(Path(__file__).parent / 'components'))
 
 from utils.config import (
     STREAMLIT_TITLE, STREAMLIT_ICON, STREAMLIT_LAYOUT,
-    GCP_PROJECT_ID, GCP_CREDENTIALS_PATH
+    GCP_PROJECT_ID, GCP_CREDENTIALS_PATH,
+    FUENTES_LICITACIONES
 )
 from utils.styles_loader import cargar_estilos_css
 from utils.data_loader import DataLoader
 from components.kpi_cards import render_kpi_cards
 from components.health_cards import render_health_grid
 from components.data_table import render_data_table
+from components.source_list import render_source_list
 
 
 # Configure Streamlit
@@ -61,7 +63,7 @@ def main():
         
         vista = st.radio(
             "Select view",
-            ["Overview", "Active", "Expired", "Scrapers"]
+            ["Overview", "Active", "Expired", "Scrapers", "Sources"]
         )
     
     # Load data
@@ -75,6 +77,8 @@ def main():
         render_expired(loader)
     elif vista == "Scrapers":
         render_scrapers(loader)
+    elif vista == "Sources":
+        render_sources(loader)
 
 
 def render_overview(loader):
@@ -170,6 +174,38 @@ def render_scrapers(loader):
     # Health grid
     st.subheader("Portal Health")
     render_health_grid(df_latest)
+
+
+def render_sources(loader):
+    """Display sources and data storage information."""
+    st.header("📌 Fuentes de licitaciones")
+    
+    df_stats = loader.cargar_estadisticas()
+    if df_stats:
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Oportunidades activas", df_stats.get('total_oportunidades', 0))
+        col2.metric("Licitaciones únicas", df_stats.get('total_licitaciones', 0))
+        col3.metric("Portales", df_stats.get('total_portales', 0))
+        col4.metric("Regiones", df_stats.get('total_regiones', 0))
+    else:
+        st.info("No se pudieron cargar estadísticas de la base de datos.")
+    
+    st.markdown("---")
+    st.markdown(
+        "Estas son las páginas desde donde se deben extraer las licitaciones en la siguiente fase de scrapers."
+    )
+    render_source_list(FUENTES_LICITACIONES)
+    
+    st.markdown("---")
+    st.subheader("Sugerencia de almacenamiento")
+    st.markdown(
+        "- Actualmente el proyecto ya usa BigQuery como almacén principal de licitaciones.\n"
+        "- Si no tienes acceso a BigQuery, una alternativa simple es usar SQLite local (`data/licitaciones.db`) o PostgreSQL para producción.\n"
+        "- La tabla principal debería tener campos como `fecha_deteccion`, `titulo_llamado_web`, `origen_web`, `curso`, `region`, `comuna`, `cupos`, `horas`, `fecha_cierre`, `estado`, `link_documento`."
+    )
+    st.markdown(
+        "- También puedes usar Google Sheets o un CSV temporal mientras desarrollas los scrapers, pero para escalabilidad recomiendo BigQuery o PostgreSQL."
+    )
 
 
 if __name__ == "__main__":

@@ -13,6 +13,12 @@ pip install -r requirements.txt
 ## Uso
 
 ```bash
+streamlit run app.py
+```
+
+O también puedes ejecutar:
+
+```bash
 streamlit run dashboard.py
 ```
 
@@ -35,7 +41,10 @@ El dashboard se abrirá en `http://localhost:8501`
 
 ## Archivos
 
-- `dashboard.py`: Aplicación principal
+- `app.py`: Aplicación principal
+- `dashboard.py`: Entrypoint wrapper que lanza `app.py`
+- `components/`: Componentes reutilizables de UI
+- `utils/`: Configuración y carga de datos
 
 ## Temas
 
