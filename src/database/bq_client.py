@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import logging
+import pandas_gbq
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -30,10 +31,12 @@ class BigQueryClient:
             
             #Inyectar a bigquery
             
-            df.to_gbq(
+            pandas_gbq.to_gbq(
+                df,
                 destination_table=self.destination_table,
                 project_id=self.project_id,
-                if_exists='append' 
+                if_exists='append'
+                #credentials=credenciales 
             )
             
             logging.info("✅ ¡Inyección exitosa! Los datos ya están en la nube.")
