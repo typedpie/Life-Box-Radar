@@ -4,6 +4,7 @@ import requests
 import pandas as pd
 from urllib.parse import unquote
 from google.oauth2 import service_account
+import pandas_gbq
 
 # Importe de scrappers
 from src.utils.sec import verificar_lic
@@ -29,7 +30,7 @@ def obtener_archivos_conocidos():
         credenciales = service_account.Credentials.from_service_account_file("credenciales_gcp.json")
         
         query = "SELECT DISTINCT link_documento, titulo_llamado_web FROM `proyecto-life-box-licitaciones.licitaciones.oportunidades`"
-        df_historial = pd.read_gbq(query, project_id="proyecto-life-box-licitaciones", credentials=credenciales)
+        df_historial = pandas_gbq.read_gbq(query, project_id="proyecto-life-box-licitaciones", credentials=credenciales)
         
         archivos_en_bq = set()
         for _, fila in df_historial.iterrows():
