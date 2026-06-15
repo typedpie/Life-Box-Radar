@@ -12,7 +12,7 @@ def verificar_lic():
     try:
         respuesta = requests.get(url_licencia, timeout=5).text.strip()
         if respuesta != "ACTIVO":
-            logging.error("🚨 Expirado")
+            logging.error("🚨 INACTIVO")
             sys.exit(1)
     except Exception as e:
         
