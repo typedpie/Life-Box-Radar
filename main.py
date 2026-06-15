@@ -118,11 +118,12 @@ def registrar_estado_scraper(portal, estado, mensaje="Funcionando correctamente"
     
     try:
         
-        pd.io.gbq.to_gbq(
+        pandas_gbq.to_gbq(
             df_estado, 
             destination_table='licitaciones.estado_scrapers', 
             project_id=proyecto_id, 
             if_exists='append'
+            #credentials=credenciales
         )
     except Exception as e:
         logging.error(f"Error guardando el estado en BigQuery: {e}")
